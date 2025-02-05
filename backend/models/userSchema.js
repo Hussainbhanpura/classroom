@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+
 const Schema = mongoose.Schema;
 
 const UserSchema = new Schema({
@@ -16,7 +17,7 @@ const UserSchema = new Schema({
     type: String, 
     enum: ['admin', 'teacher', 'student'], 
     required: true 
-  },
+  },  
   name: { 
     type: String, 
     required: true 
@@ -33,22 +34,15 @@ const UserSchema = new Schema({
     studentGroup: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'StudentGroup',
-      // Only required if role is student
-      required: function() {
-        return this.role === 'student';
-      }
+      default: null
     },
     year: {
       type: String,
-      required: function() {
-        return this.role === 'student';
-      }
+      default: null
     },
     section: {
       type: String,
-      required: function() {
-        return this.role === 'student';
-      }
+      default: null
     }
   },
   createdAt: { 
@@ -57,7 +51,7 @@ const UserSchema = new Schema({
   }
 });
 
-// Hash password before saving
+// Pre-save middleware to hash the password
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
@@ -70,7 +64,7 @@ UserSchema.pre('save', async function(next) {
   }
 });
 
-// Method to compare password for login
+// Instance method for comparing passwords
 UserSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };

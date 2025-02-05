@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout/Layout';
-import axios from 'axios';
-import { getToken } from '../../utils/auth';
+import axiosInstance from '../../utils/axios';
 import toast from 'react-hot-toast';
 
 const ManageStudents = () => {
@@ -32,28 +31,26 @@ const ManageStudents = () => {
 
   const fetchStudentGroups = async () => {
     try {
-      const token = getToken();
-      const response = await axios.get('http://localhost:3001/api/student-groups', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      setLoading(true);
+      const response = await axiosInstance.get('/api/student-groups');
       setStudentGroups(response.data);
     } catch (error) {
       console.error('Error fetching student groups:', error);
-      toast.error('Failed to fetch student groups');
+      toast.error(error.response?.data?.message || 'Failed to fetch student groups');
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchStudents = async () => {
     try {
-      const token = getToken();
-      const response = await axios.get('http://localhost:3001/api/users/students', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      setLoading(true);
+      const response = await axiosInstance.get('/api/users/students');
       setStudents(response.data);
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching students:', error);
-      toast.error('Failed to fetch students');
+      toast.error(error.response?.data?.message || 'Failed to fetch students');
+    } finally {
       setLoading(false);
     }
   };
@@ -61,11 +58,9 @@ const ManageStudents = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = getToken();
-      await axios.post('http://localhost:3001/api/register', formData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      toast.success('Student registered successfully');
+      setLoading(true);
+      await axiosInstance.post('/register', formData);
+      toast.success('Student added successfully');
       fetchStudents();
       setFormData({
         name: '',
@@ -79,34 +74,34 @@ const ManageStudents = () => {
         }
       });
     } catch (error) {
-      console.error('Error registering student:', error);
-      toast.error(error.response?.data?.message || 'Failed to register student');
+      console.error('Error adding student:', error);
+      toast.error(error.response?.data?.message || 'Failed to add student');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this student?')) {
-      try {
-        const token = getToken();
-        await axios.delete(`http://localhost:3001/api/users/student/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        toast.success('Student deleted successfully');
-        fetchStudents();
-      } catch (error) {
-        console.error('Error deleting student:', error);
-        toast.error('Failed to delete student');
-      }
+  const handleDelete = async (studentId) => {
+    if (!window.confirm('Are you sure you want to delete this student?')) return;
+    
+    try {
+      setLoading(true);
+      await axiosInstance.delete(`/users/student/${studentId}`);
+      toast.success('Student deleted successfully');
+      fetchStudents();
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete student');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();
     try {
-      const token = getToken();
-      await axios.post('http://localhost:3001/api/studentgroups', groupFormData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      setLoading(true);
+      await axiosInstance.post('/api/student-groups', groupFormData);
       toast.success('Student group created successfully');
       fetchStudentGroups();
       setShowGroupModal(false);
@@ -114,164 +109,172 @@ const ManageStudents = () => {
     } catch (error) {
       console.error('Error creating student group:', error);
       toast.error('Failed to create student group');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    if (name.startsWith('metadata.')) {
+      const metadataField = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
+        metadata: {
+          ...prev.metadata,
+          [metadataField]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
   };
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-8">Manage Students</h1>
-
-        {/* Add Student Form */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Add New Student</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="form-input"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="form-input"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Password</label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="form-input"
-                required
-                minLength="6"
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">Student Group</label>
-                <button
-                  type="button"
-                  onClick={() => setShowGroupModal(true)}
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                >
-                  + Add New Group
-                </button>
+        <h1 className="text-2xl font-bold mb-6">Manage Students</h1>
+        
+        {loading && <div className="text-center">Loading...</div>}
+        
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Add Student Form */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Add New Student</h2>
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
               </div>
-              <select
-                value={formData.metadata.studentGroup}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    metadata: { ...formData.metadata, studentGroup: e.target.value }
-                  })
-                }
-                className="form-input"
-                required
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Student Group
+                </label>
+                <select
+                  name="metadata.studentGroup"
+                  value={formData.metadata.studentGroup}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                >
+                  <option value="">Select a group</option>
+                  {studentGroups.map(group => (
+                    <option key={group._id} value={group._id}>
+                      {group.name} - {group.academicYear}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Year
+                </label>
+                <input
+                  type="text"
+                  name="metadata.year"
+                  value={formData.metadata.year}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Section
+                </label>
+                <input
+                  type="text"
+                  name="metadata.section"
+                  value={formData.metadata.section}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
               >
-                <option value="">Select a student group</option>
-                {studentGroups.map((group) => (
-                  <option key={group._id} value={group._id}>
-                    {group.name} ({group.academicYear})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Year</label>
-              <input
-                type="text"
-                value={formData.metadata.year}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    metadata: { ...formData.metadata, year: e.target.value }
-                  })
-                }
-                className="form-input"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Section</label>
-              <input
-                type="text"
-                value={formData.metadata.section}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    metadata: { ...formData.metadata, section: e.target.value }
-                  })
-                }
-                className="form-input"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-            >
-              Add Student
-            </button>
-          </form>
-        </div>
+                Add Student
+              </button>
+            </form>
+          </div>
 
-        {/* Students List */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Students List</h2>
-          {loading ? (
-            <p>Loading...</p>
-          ) : (
+          {/* Students List */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Current Students</h2>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student Group
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Year
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Section
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+              <table className="min-w-full table-auto">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="px-4 py-2">Name</th>
+                    <th className="px-4 py-2">Email</th>
+                    <th className="px-4 py-2">Group</th>
+                    <th className="px-4 py-2">Year</th>
+                    <th className="px-4 py-2">Section</th>
+                    <th className="px-4 py-2">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {students.map((student) => (
-                    <tr key={student._id}>
-                      <td className="px-6 py-4 whitespace-nowrap">{student.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{student.email}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                <tbody>
+                  {students.map(student => (
+                    <tr key={student._id} className="border-b">
+                      <td className="px-4 py-2">{student.name}</td>
+                      <td className="px-4 py-2">{student.email}</td>
+                      <td className="px-4 py-2">
                         {student.metadata?.studentGroup ? 
                           `${student.metadata.studentGroup.name} (${student.metadata.studentGroup.academicYear})` 
                           : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">{student.metadata?.year || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{student.metadata?.section || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-2">{student.metadata?.year || '-'}</td>
+                      <td className="px-4 py-2">{student.metadata?.section || '-'}</td>
+                      <td className="px-4 py-2">
                         <button
                           onClick={() => handleDelete(student._id)}
-                          className="text-red-600 hover:text-red-900"
+                          className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
                         >
                           Delete
                         </button>
@@ -281,7 +284,7 @@ const ManageStudents = () => {
                 </tbody>
               </table>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Add Student Group Modal */}

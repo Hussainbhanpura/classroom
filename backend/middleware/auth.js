@@ -5,39 +5,67 @@ export const auth = async (req, res, next) => {
   try {
     // Get token from header
     const token = req.header('Authorization')?.replace('Bearer ', '');
+    console.log('Auth middleware - Token present:', !!token);
     
     if (!token) {
       return res.status(401).json({ message: 'No auth token found' });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Decoded token:', decoded);
+    try {
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('Auth middleware - Decoded token:', decoded);
+      
+      // Find user by either _id or id
+      const user = await User.findById(decoded._id || decoded.id);
+      console.log('Auth middleware - Found user:', !!user);
+      
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
 
-    // Find user
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      throw new Error('User not found');
+      // Add user info to request
+      req.user = {
+        ...decoded,
+        _id: decoded._id || decoded.id,  // Ensure _id is available
+        id: decoded._id || decoded.id     // Ensure id is available
+      };
+      next();
+    } catch (jwtError) {
+      console.error('Auth middleware - JWT Error:', jwtError.name, jwtError.message);
+      // Handle specific JWT errors
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Token expired' });
+      }
+      if (jwtError.name === 'JsonWebTokenError') {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+      throw jwtError;
     }
-
-    // Add user info to request
-    req.user = decoded;
-    req.user._id = decoded.id; // Ensure both id and _id are available
-    next();
   } catch (error) {
-    console.error('Auth error:', error);
+    console.error('Auth middleware - Error:', error);
     res.status(401).json({ message: 'Please authenticate' });
   }
 };
 
-export const isAdmin = async (req, res, next) => {
+export const isAdmin = (req, res, next) => {
   try {
+    console.log('isAdmin middleware - User:', req.user);
+    
+    // Check if user object exists
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Check if user is admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
+    
     next();
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Admin authorization error:', error);
+    res.status(500).json({ message: 'Authorization check failed' });
   }
 };
 

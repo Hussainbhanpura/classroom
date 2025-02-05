@@ -10,14 +10,23 @@ router.use(auth);
 // Get all student groups
 router.get('/student-groups', async (req, res) => {
   try {
+    console.log('Fetching student groups...');
+    console.log('User:', req.user); // Log the user making the request
+    
     const groups = await StudentGroup.find()
       .populate('subjects', 'name lecturesPerWeek')
       .sort('name')
       .lean();
+    
+    console.log(`Successfully fetched ${groups.length} student groups`);
     res.json(groups);
   } catch (error) {
     console.error('Error fetching student groups:', error);
-    res.status(500).json({ message: 'Failed to fetch student groups' });
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to fetch student groups',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

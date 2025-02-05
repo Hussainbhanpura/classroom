@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout/Layout';
-import axios from 'axios';
-import { getToken } from '../../utils/auth';
+import axios from '../../utils/axios';  
 import toast from 'react-hot-toast';
 
 const ManageTeachers = () => {
@@ -28,10 +27,7 @@ const ManageTeachers = () => {
 
   const fetchSubjects = async () => {
     try {
-      const token = getToken();
-      const response = await axios.get('http://localhost:3001/api/subjects', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.get('/api/subjects');
       setSubjects(response.data);
     } catch (error) {
       console.error('Error fetching subjects:', error);
@@ -41,10 +37,7 @@ const ManageTeachers = () => {
 
   const fetchStudentGroups = async () => {
     try {
-      const token = getToken();
-      const response = await axios.get('http://localhost:3001/api/student-groups', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.get('/api/student-groups');
       setStudentGroups(response.data);
     } catch (error) {
       console.error('Error fetching student groups:', error);
@@ -54,10 +47,7 @@ const ManageTeachers = () => {
 
   const fetchTeachers = async () => {
     try {
-      const token = getToken();
-      const response = await axios.get('http://localhost:3001/api/users/teachers', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.get('/api/users/teachers');
       setTeachers(response.data);
       setLoading(false);
     } catch (error) {
@@ -70,10 +60,7 @@ const ManageTeachers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = getToken();
-      await axios.post('http://localhost:3001/api/register', formData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.post('/api/register', formData);
       toast.success('Teacher registered successfully');
       fetchTeachers();
       setFormData({
@@ -95,10 +82,7 @@ const ManageTeachers = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this teacher?')) {
       try {
-        const token = getToken();
-        await axios.delete(`http://localhost:3001/api/users/teacher/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await axios.delete(`/api/users/teacher/${id}`);
         toast.success('Teacher deleted successfully');
         fetchTeachers();
       } catch (error) {
@@ -235,15 +219,15 @@ const ManageTeachers = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {teachers.map((teacher) => (
-                    <tr key={teacher._id}>
+                    <tr key={teacher.id}>
                       <td className="px-6 py-4 whitespace-nowrap">{teacher.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{teacher.email}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {teacher.metadata?.subjects?.map(subject => subject.name).join(', ') || '-'}
+                        {teacher?.subjects?.map(subject => subject.name).join(', ') || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {teacher.metadata?.studentGroup ? 
-                          `${teacher.metadata.studentGroup.name} (${teacher.metadata.studentGroup.academicYear})` 
+                        {teacher?.studentGroup ? 
+                          `${teacher.studentGroup.name} (${teacher.studentGroup.academicYear})` 
                           : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

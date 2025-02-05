@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../../utils/axios';
 import { toast } from 'react-toastify';
 import Select from 'react-select';
 
@@ -18,18 +18,33 @@ const ManageStudentGroups = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('Fetching student groups and subjects...');
+        const token = localStorage.getItem('token');
+        console.log('Using token:', token ? 'Present' : 'Missing');
+        
         const [groupsRes, subjectsRes] = await Promise.all([
           axios.get('/api/student-groups'),
           axios.get('/api/subjects')
         ]);
+        
+        console.log('Student groups response:', groupsRes.data);
+        console.log('Subjects response:', subjectsRes.data);
+        
         setGroups(groupsRes.data);
         setSubjects(subjectsRes.data.map(subject => ({
           value: subject._id,
-          label: `${subject.name} (${subject.lecturesPerWeek || 3} lectures/week)`
+          label: subject.name
         })));
       } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('Failed to fetch data');
+        console.error('Error in fetchData:', error);
+        if (error.response) {
+          console.error('Response data:', error.response.data);
+          console.error('Response status:', error.response.status);
+          console.error('Response headers:', error.response.headers);
+        } else if (error.request) {
+          console.error('Request error:', error.request);
+        }
+        toast.error(error.response?.data?.message || 'Failed to fetch data');
       }
     };
     fetchData();
@@ -73,7 +88,7 @@ const ManageStudentGroups = () => {
     setSelectedSubjects(
       group.subjects?.map(subject => ({
         value: subject._id,
-        label: `${subject.name} (${subject.lecturesPerWeek || 3} lectures/week)`
+        label: subject.name
       })) || []
     );
   };
@@ -169,7 +184,7 @@ const ManageStudentGroups = () => {
                 <ul className="list-disc list-inside text-sm text-gray-600">
                   {group.subjects?.map(subject => (
                     <li key={subject._id}>
-                      {subject.name} ({subject.lecturesPerWeek || 3} lectures/week)
+                      {subject.name}
                     </li>
                   ))}
                 </ul>

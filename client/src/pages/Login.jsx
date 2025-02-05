@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../utils/axios';  // Use configured instance
 import { setToken, getUserRole } from '../utils/auth';
 import toast from 'react-hot-toast';
 
@@ -14,14 +14,19 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:3001/api/login', formData);
+      console.log('Attempting login...');
+      const response = await axios.post('/api/login', formData);
       const { token } = response.data;
+      
+      console.log('Login successful, token received');
       
       // Store the token
       setToken(token);
       
       // Get user role from token and redirect accordingly
       const role = getUserRole();
+      console.log('User role:', role);
+      
       if (role === 'admin') {
         navigate('/admin/dashboard');
       } else if (role === 'teacher') {
@@ -33,7 +38,16 @@ const Login = () => {
       toast.success('Login successful!');
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error.response?.data?.message || 'Login failed');
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        toast.error(error.response.data.message || 'Login failed');
+      } else if (error.request) {
+        console.error('Request error:', error.request);
+        toast.error('Network error. Please try again.');
+      } else {
+        console.error('Error:', error.message);
+        toast.error('An unexpected error occurred');
+      }
     }
   };
 

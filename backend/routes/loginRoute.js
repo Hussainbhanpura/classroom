@@ -33,6 +33,7 @@ router.post('/login', async (req, res) => {
     // Create JWT token with user info in payload
     const token = jwt.sign(
       {
+        _id: user._id,
         id: user._id,
         email: user.email,
         role: user.role,
@@ -96,7 +97,8 @@ router.post('/register', async (req, res) => {
     // Create JWT token
     const token = jwt.sign(
       { 
-        userId: user._id,
+        _id: user._id,
+        id: user._id,
         email: user.email,
         role: user.role,
         name: user.name
@@ -127,8 +129,10 @@ router.post('/register', async (req, res) => {
 });
 
 // Get all teachers
-router.get('/users/teachers', isAdmin, async (req, res) => {
+router.get('/users/teachers', auth, isAdmin, async (req, res) => {
   try {
+    console.log('Fetching teachers. User:', req.user);
+    
     const teachers = await User.find({ role: 'teacher' })
       .populate({
         path: 'metadata.subjects',
@@ -142,17 +146,40 @@ router.get('/users/teachers', isAdmin, async (req, res) => {
       })
       .lean()
       .exec();
-    res.json(teachers);
+    
+    console.log(`Successfully fetched ${teachers.length} teachers`);
+    
+    // Transform the response to include only necessary data
+    const transformedTeachers = teachers.map(teacher => ({
+      id: teacher._id,
+      name: teacher.name,
+      email: teacher.email,
+      subjects: teacher.metadata?.subjects || [],
+      studentGroup: teacher.metadata?.studentGroup ? {
+        id: teacher.metadata.studentGroup._id,
+        name: teacher.metadata.studentGroup.name,
+        academicYear: teacher.metadata.studentGroup.academicYear
+      } : null,
+      createdAt: teacher.createdAt
+    }));
+
+    res.json(transformedTeachers);
   } catch (error) {
-    console.error('Error fetching teachers:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error in /users/teachers:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch teachers',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
 // Get all students
 router.get('/users/students', isAdmin, async (req, res) => {
   try {
+    console.log('Fetching all students...');
+    
     const students = await User.find({ role: 'student' })
+      .select('name email role metadata createdAt')
       .populate({
         path: 'metadata.studentGroup',
         model: 'StudentGroup',
@@ -161,10 +188,29 @@ router.get('/users/students', isAdmin, async (req, res) => {
       .lean()
       .exec();
 
-    res.json(students);
+    console.log(`Successfully fetched ${students.length} students`);
+    
+    // Transform the response to include only necessary data
+    const transformedStudents = students.map(student => ({
+      id: student._id,
+      name: student.name,
+      email: student.email,
+      group: student.metadata?.studentGroup ? {
+        id: student.metadata.studentGroup._id,
+        name: student.metadata.studentGroup.name,
+        academicYear: student.metadata.studentGroup.academicYear
+      } : null,
+      createdAt: student.createdAt
+    }));
+
+    res.json(transformedStudents);
   } catch (error) {
-    console.error('Error fetching students:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error in /users/students:', error);
+    // Send a more specific error message
+    res.status(500).json({ 
+      message: 'Failed to fetch students',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

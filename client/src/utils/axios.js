@@ -34,10 +34,14 @@ instance.interceptors.response.use(
       console.error('Response error:', {
         status: error.response.status,
         data: error.response.data,
-        headers: error.response.headers
+        message: error.response.data?.message
       });
-      if (error.response.status === 401) {
-        // Handle unauthorized access
+
+      // Only redirect to login for token-related errors
+      if (error.response.status === 401 && 
+          (error.response.data?.message === 'Token expired' || 
+           error.response.data?.message === 'Invalid token' ||
+           error.response.data?.message === 'No auth token found')) {
         localStorage.removeItem('token');
         window.location.href = '/login';
       }
