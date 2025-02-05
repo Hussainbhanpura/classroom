@@ -1,0 +1,30 @@
+{
+  "name": "classroom-management-system",
+  "version": "1.0.0",
+  "description": "A comprehensive classroom management system",
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm start",
+    "client": "cd client && npm start",
+    "install-all": "npm install && cd backend && npm install && cd ../client && npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hussainbhanpura/classroom.git"
+  },
+  "keywords": [
+    "classroom",
+    "management",
+    "timetable",
+    "scheduling"
+  ],
+  "author": "Hussain Bhanpura",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Hussainbhanpura/classroom/issues"
+  },
+  "homepage": "https://github.com/Hussainbhanpura/classroom#readme",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
