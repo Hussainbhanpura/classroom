@@ -11,7 +11,7 @@ router.use(auth);
 router.get('/student-groups', async (req, res) => {
   try {
     console.log('Fetching student groups...');
-    console.log('User:', req.user); // Log the user making the request
+    console.log('User:', req.user);
     
     const groups = await StudentGroup.find()
       .populate('subjects', 'name lecturesPerWeek')
@@ -19,7 +19,17 @@ router.get('/student-groups', async (req, res) => {
       .lean();
     
     console.log(`Successfully fetched ${groups.length} student groups`);
-    res.json(groups);
+    const formattedGroups = groups.map(group => {
+      if (group.subjects && group.subjects.length > 0) {
+        return {
+          ...group,
+          subjects: group.subjects.map(subject => subject.name)
+        };
+      } else {
+        return group;
+      }
+    });
+    res.json(formattedGroups);
   } catch (error) {
     console.error('Error fetching student groups:', error);
     console.error('Stack trace:', error.stack);

@@ -389,6 +389,22 @@ router.delete('/users/student/:id', isAdmin, async (req, res) => {
   }
 });
 
+// Add this route to handle student deletion
+router.delete('/users/:id', isAdmin, async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Failed to delete user' });
+  }
+});
+
 // Update student
 router.put('/users/student/:id', isAdmin, async (req, res) => {
   try {

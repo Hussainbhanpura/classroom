@@ -84,19 +84,18 @@ const ManageStudents = () => {
   };
 
   const handleDelete = async (studentId) => {
-    if (!window.confirm("Are you sure you want to delete this student?"))
-      return;
-
     try {
-      setLoading(true);
-      await axiosInstance.delete(`/api/users/students/${studentId}`);
-      toast.success("Student deleted successfully");
-      fetchStudents();
+      const token = localStorage.getItem('token');
+      await axiosInstance.delete(`/api/users/${studentId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Update the students list after successful deletion
+      setStudents(students.filter(student => student._id !== studentId));
+      toast.success('Student deleted successfully');
     } catch (error) {
-      console.error("Error deleting student:", error);
-      toast.error(error.response?.data?.message || "Failed to delete student");
-    } finally {
-      setLoading(false);
+      console.error('Error deleting student:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete student');
     }
   };
 
@@ -139,7 +138,62 @@ const ManageStudents = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Manage Students</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">Manage Students</h1>
+          <button
+            onClick={() => setShowGroupModal(true)}
+            className="bg-blue-500 text-white px-4 py-2 rounded-md"
+          >
+            Add Student Group
+          </button>
+        </div>
+
+        {showGroupModal && (
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex justify-center items-center">
+            <div className="bg-white p-6 rounded-md shadow-md">
+              <h2 className="text-xl font-semibold mb-4">Add Student Group</h2>
+              <form onSubmit={handleCreateGroup} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Group Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={groupFormData.name}
+                    onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
+                    className="form-input mt-1 block w-full"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Academic Year</label>
+                  <input
+                    type="text"
+                    name="academicYear"
+                    value={groupFormData.academicYear}
+                    onChange={(e) => setGroupFormData({ ...groupFormData, academicYear: e.target.value })}
+                    className="form-input mt-1 block w-full"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowGroupModal(false)}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md mr-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-500 text-white px-4 py-2 rounded-md"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {loading && <div className="text-center">Loading...</div>}
 
@@ -280,7 +334,7 @@ const ManageStudents = () => {
                       </td>
                       <td className="px-4 py-2">
                         <button
-                          onClick={() => handleDelete(student._id)}
+                          onClick={() => handleDelete(student.id)}
                           className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
                         >
                           Delete
@@ -293,69 +347,6 @@ const ManageStudents = () => {
             </div>
           </div>
         </div>
-
-        {/* Add Student Group Modal */}
-        {showGroupModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg p-6 w-96">
-              <h2 className="text-xl font-semibold mb-4">
-                Add New Student Group
-              </h2>
-              <form onSubmit={handleCreateGroup} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Group Name
-                  </label>
-                  <input
-                    type="text"
-                    value={groupFormData.name}
-                    onChange={(e) =>
-                      setGroupFormData({
-                        ...groupFormData,
-                        name: e.target.value,
-                      })
-                    }
-                    className="form-input"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Academic Year
-                  </label>
-                  <input
-                    type="text"
-                    value={groupFormData.academicYear}
-                    onChange={(e) =>
-                      setGroupFormData({
-                        ...groupFormData,
-                        academicYear: e.target.value,
-                      })
-                    }
-                    className="form-input"
-                    required
-                    placeholder="e.g., 2024-2025"
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowGroupModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-md"
-                  >
-                    Create Group
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   );

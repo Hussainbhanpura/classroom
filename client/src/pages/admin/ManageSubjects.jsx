@@ -7,12 +7,15 @@ import toast from "react-hot-toast";
 const ManageSubjects = () => {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [studentGroups, setStudentGroups] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     requiredEquipment: [],
+    studentGroup: "",
   });
   const [equipmentInput, setEquipmentInput] = useState("");
+  const [selectedStudentGroup, setSelectedStudentGroup] = useState(null);
 
   const commonEquipment = [
     "Whiteboard",
@@ -27,21 +30,47 @@ const ManageSubjects = () => {
     "Art Supplies",
   ];
 
+  // Fetch data when the component mounts
   useEffect(() => {
     fetchSubjects();
+    fetchStudentGroups();
   }, []);
+
+  const fetchStudentGroups = async () => {
+    try {
+      setLoading(true);
+      const token = getToken(); // Ensure token is fetched here
+      const response = await axios.get(
+        "http://localhost:3001/api/student-groups",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      console.log(response.data); // Verify the response structure
+      setStudentGroups(response.data); // Assuming the response contains the student groups
+    } catch (error) {
+      console.error("Error fetching student groups:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to fetch student groups"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchSubjects = async () => {
     try {
-      const token = getToken();
+      const token = getToken(); // Ensure token is fetched here
       const response = await axios.get("http://localhost:3001/api/subjects", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSubjects(response.data);
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching subjects:", error);
-      toast.error("Failed to fetch subjects");
+      toast.error(error?.response?.data?.message || "Failed to fetch subjects");
+    } finally {
       setLoading(false);
     }
   };
@@ -49,18 +78,19 @@ const ManageSubjects = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = getToken();
-      console.log("Token:", token); // Log token
-
+      const token = getToken(); // Ensure token is fetched here
       const equipment = [...formData.requiredEquipment];
+
+      // Add additional equipment input
       if (equipmentInput.trim()) {
         equipment.push(...equipmentInput.split(",").map((item) => item.trim()));
       }
+
+      // Remove duplicates and prepare data for submission
       const dataToSend = {
         ...formData,
         requiredEquipment: Array.from(new Set(equipment)), // Remove duplicates
       };
-      console.log("Sending data:", dataToSend); // Log data being sent
 
       const response = await axios.post(
         "http://localhost:3001/api/subjects",
@@ -72,7 +102,6 @@ const ManageSubjects = () => {
           },
         }
       );
-      console.log("Response:", response.data); // Log response
 
       toast.success("Subject added successfully");
       fetchSubjects();
@@ -80,18 +109,20 @@ const ManageSubjects = () => {
         name: "",
         description: "",
         requiredEquipment: [],
+        studentGroup: "",
       });
       setEquipmentInput("");
+      setSelectedStudentGroup(null);
     } catch (error) {
-      console.error("Error adding subject:", error.response?.data || error); // Log detailed error
-      toast.error(error.response?.data?.message || "Failed to add subject");
+      console.error("Error adding subject:", error?.response?.data || error);
+      toast.error(error?.response?.data?.message || "Failed to add subject");
     }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this subject?")) {
       try {
-        const token = getToken();
+        const token = getToken(); // Ensure token is fetched here
         await axios.delete(`http://localhost:3001/api/subjects/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -111,6 +142,11 @@ const ManageSubjects = () => {
         : [...prev.requiredEquipment, equipment];
       return { ...prev, requiredEquipment: newEquipment };
     });
+  };
+
+  const handleStudentGroupChange = (e) => {
+    setSelectedStudentGroup(e.target.value);
+    setFormData((prev) => ({ ...prev, studentGroup: e.target.value }));
   };
 
   return (
@@ -196,6 +232,25 @@ const ManageSubjects = () => {
               </div>
             )}
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Student Group
+              </label>
+              <select
+                value={selectedStudentGroup}
+                onChange={handleStudentGroupChange}
+                className="form-input"
+              >
+                <option value="">Select a student group</option>
+                {studentGroups.map((group) => (
+                  <option key={group._id} value={group._id}>
+                    {group.name || group.academicYear}{" "}
+                    {/* Use group name or academic year */}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <button
               type="submit"
               className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
@@ -222,7 +277,7 @@ const ManageSubjects = () => {
                       Description
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Required Equipment
+                      Student Group
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
@@ -232,23 +287,17 @@ const ManageSubjects = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {subjects.map((subject) => (
                     <tr key={subject._id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {subject.name}
                       </td>
-                      <td className="px-6 py-4">{subject.description}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {subject.requiredEquipment.map((equipment, index) => (
-                            <span
-                              key={index}
-                              className="inline-block px-2 py-1 text-xs bg-gray-100 rounded-full"
-                            >
-                              {equipment}
-                            </span>
-                          ))}
-                        </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {subject.description}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {subject.studentGroup?.name ||
+                          subject.studentGroup?.academicYear}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         <button
                           onClick={() => handleDelete(subject._id)}
                           className="text-red-600 hover:text-red-900"
