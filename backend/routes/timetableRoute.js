@@ -34,7 +34,7 @@ router.get('/timetable', async (req, res) => {
 
     // Group slots by student group
     const groupedSlots = {};
-    
+
     slots.forEach(slot => {
       const studentGroupId = slot.studentGroupId._id.toString();
       if (!groupedSlots[studentGroupId]) {
@@ -43,7 +43,7 @@ router.get('/timetable', async (req, res) => {
           schedule: []
         };
       }
-      
+
       groupedSlots[studentGroupId].schedule.push({
         day: slot.dayName,
         timeSlot: slot.timeSlotName,
@@ -109,7 +109,7 @@ router.get('/teacher/schedule', auth, async (req, res) => {
 router.get('/student/schedule', auth, async (req, res) => {
   try {
     const studentId = req.user.id;
-    
+
     // Get student's group
     const student = await User.findById(studentId).populate('metadata.studentGroup');
     if (!student?.metadata?.studentGroup) {
@@ -153,7 +153,11 @@ router.get('/student/schedule', auth, async (req, res) => {
 router.post('/generate-timetable', isAdmin, async (req, res) => {
   try {
     console.log('Starting timetable generation...');
-
+    
+    // Set timeout to 15 minutes
+    req.setTimeout(900000);
+    res.setTimeout(900000);
+    
     // Clear existing timetable and slots
     await Timetable.deleteMany({});
     await TimetableSlot.deleteMany({});
@@ -207,7 +211,7 @@ router.post('/generate-timetable', isAdmin, async (req, res) => {
 
     // Group slots by student group
     const groupedSlots = {};
-    
+
     createdSlots.forEach(slot => {
       const studentGroupId = slot.studentGroupId._id.toString();
       if (!groupedSlots[studentGroupId]) {
@@ -216,7 +220,7 @@ router.post('/generate-timetable', isAdmin, async (req, res) => {
           schedule: []
         };
       }
-      
+
       groupedSlots[studentGroupId].schedule.push({
         day: slot.dayName,
         timeSlot: slot.timeSlotName,

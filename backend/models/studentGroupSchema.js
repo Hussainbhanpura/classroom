@@ -19,7 +19,11 @@ const StudentGroupSchema = new Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject',
     required: true
-  }]
+  }],
+  timetable: [[{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'TimetableEntry'
+  }]]
 }, {
   timestamps: true
 });

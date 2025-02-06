@@ -4,8 +4,10 @@ import User from '../models/userSchema.js';
 export const auth = async (req, res, next) => {
   try {
     // Get token from header
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    console.log('Auth middleware - Token present:', !!token);
+    const authHeader = req.header('Authorization');
+    console.log('Auth middleware - Authorization header:', authHeader);
+    const token = authHeader?.replace('Bearer ', '');
+    console.log('Auth middleware - Token after Bearer removal:', token);
     
     if (!token) {
       return res.status(401).json({ message: 'No auth token found' });

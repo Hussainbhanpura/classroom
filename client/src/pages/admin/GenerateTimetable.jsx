@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const GenerateTimetable = () => {
   const [studentGroups, setStudentGroups] = useState([]);
@@ -11,8 +11,14 @@ const GenerateTimetable = () => {
 
   // Time slots for the timetable
   const timeSlots = [
-    "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-    "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"
+    "9:00 AM",
+    "10:00 AM",
+    "11:00 AM",
+    "12:00 PM",
+    "1:00 PM",
+    "2:00 PM",
+    "3:00 PM",
+    "4:00 PM",
   ];
 
   useEffect(() => {
@@ -22,31 +28,31 @@ const GenerateTimetable = () => {
   const fetchData = async () => {
     try {
       const [groupsResponse, subjectsResponse] = await Promise.all([
-        axios.get('/api/student-groups'),
-        axios.get('/api/subjects')
+        axios.get("/api/student-groups"),
+        axios.get("/api/subjects"),
       ]);
 
       setStudentGroups(groupsResponse.data);
       setSubjects(subjectsResponse.data);
     } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to fetch data');
+      console.error("Error fetching data:", error);
+      toast.error("Failed to fetch data");
     }
   };
 
   const handleGroupChange = (groupId) => {
-    setSelectedGroups(prev => {
+    setSelectedGroups((prev) => {
       if (prev.includes(groupId)) {
-        return prev.filter(id => id !== groupId);
+        return prev.filter((id) => id !== groupId);
       }
       return [...prev, groupId];
     });
   };
 
   const handleSubjectChange = (subjectId) => {
-    setSelectedSubjects(prev => {
+    setSelectedSubjects((prev) => {
       if (prev.includes(subjectId)) {
-        return prev.filter(id => id !== subjectId);
+        return prev.filter((id) => id !== subjectId);
       }
       return [...prev, subjectId];
     });
@@ -54,11 +60,13 @@ const GenerateTimetable = () => {
 
   const generateTimetable = async () => {
     if (!selectedGroups.length || !selectedSubjects.length) {
-      toast.warning('Please select at least one student group and subject');
+      toast.warning("Please select at least one student group and subject");
       return;
     }
 
     setLoading(true);
+    toast.info("Starting timetable generation. This may take a few minutes...");
+
     try {
       // Get today's date and end date (5 days from now)
       const startDate = new Date();
@@ -66,19 +74,31 @@ const GenerateTimetable = () => {
       endDate.setDate(endDate.getDate() + 4);
 
       const payload = {
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        startDate: startDate.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
         timeSlots,
         studentGroups: selectedGroups,
-        subjects: selectedSubjects
+        subjects: selectedSubjects,
       };
 
-      const response = await axios.post('/api/timetable/generate', payload);
-      toast.success('Timetable generated successfully!');
+      // Configure axios for long-running request
+      const response = await axios.post("/api/generate-timetable", payload, {
+        timeout: 900000, // 15 minutes
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      toast.success("Timetable generated successfully!");
       // You can add navigation to view timetable page here
     } catch (error) {
-      console.error('Error generating timetable:', error);
-      toast.error('Failed to generate timetable');
+      console.error("Error generating timetable:", error);
+      if (error.code === 'ECONNABORTED') {
+        toast.error("Timetable generation timed out. Please try again with fewer groups/subjects.");
+      } else {
+        toast.error("Failed to generate timetable: " + (error.response?.data?.message || error.message));
+      }
     } finally {
       setLoading(false);
     }
@@ -93,7 +113,7 @@ const GenerateTimetable = () => {
         <div className="border rounded-lg p-4">
           <h2 className="text-xl font-semibold mb-4">Select Student Groups</h2>
           <div className="space-y-2">
-            {studentGroups.map(group => (
+            {studentGroups.map((group) => (
               <label key={group._id} className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -111,7 +131,7 @@ const GenerateTimetable = () => {
         <div className="border rounded-lg p-4">
           <h2 className="text-xl font-semibold mb-4">Select Subjects</h2>
           <div className="space-y-2">
-            {subjects.map(subject => (
+            {subjects.map((subject) => (
               <label key={subject._id} className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -130,7 +150,7 @@ const GenerateTimetable = () => {
       <div className="mt-6 border rounded-lg p-4">
         <h2 className="text-xl font-semibold mb-4">Time Slots</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {timeSlots.map(slot => (
+          {timeSlots.map((slot) => (
             <div key={slot} className="p-2 bg-gray-100 rounded">
               {slot}
             </div>
@@ -144,11 +164,11 @@ const GenerateTimetable = () => {
         disabled={loading || !selectedGroups.length || !selectedSubjects.length}
         className={`mt-6 px-6 py-2 rounded-lg text-white ${
           loading || !selectedGroups.length || !selectedSubjects.length
-            ? 'bg-gray-400'
-            : 'bg-blue-600 hover:bg-blue-700'
+            ? "bg-gray-400"
+            : "bg-blue-600 hover:bg-blue-700"
         }`}
       >
-        {loading ? 'Generating...' : 'Generate Timetable'}
+        {loading ? "Generating..." : "Generate Timetable"}
       </button>
     </div>
   );

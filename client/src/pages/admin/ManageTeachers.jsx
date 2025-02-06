@@ -144,40 +144,42 @@ const ManageTeachers = () => {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700">Student Group</label>
+              <select
+                value={formData.metadata.studentGroup}
+                onChange={(e) => {
+                  const selectedGroup = e.target.value;
+                  setFormData({
+                    ...formData,
+                    metadata: {
+                      ...formData.metadata,
+                      studentGroup: selectedGroup
+                    }
+                  });
+                  // Fetch subjects for the selected student group
+                  const selectedGroupSubjects = studentGroups.find(group => group._id === selectedGroup)?.subjects || [];
+                  setSubjects(selectedGroupSubjects);
+                }}
+                className="form-select"
+                required
+              >
+                <option value="">Select a group</option>
+                {studentGroups.map(group => (
+                  <option key={group._id} value={group._id}>{group.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700">Subjects</label>
               <select
                 multiple
                 value={formData.metadata.subjects}
                 onChange={handleSubjectsChange}
-                className="form-input h-32"
+                className="form-multiselect"
                 required
               >
-                {subjects.map((subject) => (
-                  <option key={subject._id} value={subject._id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-sm text-gray-500">Hold Ctrl/Cmd to select multiple subjects</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Student Group</label>
-              <select
-                value={formData.metadata.studentGroup}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  metadata: {
-                    ...formData.metadata,
-                    studentGroup: e.target.value
-                  }
-                })}
-                className="form-input"
-              >
-                <option value="">Select a student group</option>
-                {studentGroups.map((group) => (
-                  <option key={group._id} value={group._id}>
-                    {group.name} ({group.academicYear})
-                  </option>
+                {subjects.map(subject => (
+                  <option key={subject._id} value={subject._id}>{subject.name}</option>
                 ))}
               </select>
             </div>

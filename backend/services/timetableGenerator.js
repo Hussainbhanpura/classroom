@@ -27,21 +27,39 @@ class TimetableGenerator {
   }
 
   // Helper to get teacher's preference for a given day/time slot.
+  // Cache for teacher preferences
+  teacherPrefCache = new Map();
+
   async getTeacherPreference(teacher, day, timeSlot) {
-    const pref = await TeacherPreference.findOne({ teacherId: teacher._id });
+    const teacherId = teacher._id.toString();
+    
+    // Check cache first
+    if (!this.teacherPrefCache.has(teacherId)) {
+      const pref = await TeacherPreference.findOne({ teacherId: teacher._id }).lean();
+      this.teacherPrefCache.set(teacherId, pref || {});
+    }
+    
+    const pref = this.teacherPrefCache.get(teacherId);
     const dayPrefs = pref?.availableTimeSlots?.[day.toLowerCase()] || {};
-    // If teacherPreference is explicitly defined, return it; otherwise default to AVAILABLE (0)
-    const teacherPref = typeof dayPrefs[timeSlot] !== 'undefined' ? dayPrefs[timeSlot] : this.AVAILABLE;
-    return teacherPref;
+    return typeof dayPrefs[timeSlot] !== 'undefined' ? dayPrefs[timeSlot] : this.AVAILABLE;
   }
 
   async initializeTracking() {
     const teacherLimits = new Map();
     const classroomAvailability = new Map();
 
+    // Batch fetch all teacher preferences
+    const teacherIds = this.teachers.map(t => t._id);
+    const teacherPrefs = await TeacherPreference.find({ 
+      teacherId: { $in: teacherIds } 
+    }).lean();
+    
+    // Create a map for quick lookup
+    const prefMap = new Map(teacherPrefs.map(p => [p.teacherId.toString(), p]));
+
     // Initialize teacher limits:
     for (const teacher of this.teachers) {
-      const pref = await TeacherPreference.findOne({ teacherId: teacher._id });
+      const pref = prefMap.get(teacher._id.toString());
       teacherLimits.set(teacher._id.toString(), {
         daily: new Map(this.days.map(day => [day, { count: 0, lastIndex: -1 }])),
         weekly: 0,
@@ -66,17 +84,21 @@ class TimetableGenerator {
   async generateTimetable() {
     try {
       console.log('🚀 Starting timetable generation...');
-      await TimetableSlot.deleteMany({});
-
-      const [teachers, subjects, studentGroups] = await Promise.all([
-        User.find({ role: 'teacher' }),
-        Subject.find({}),
-        StudentGroup.find({})
+      
+      // Batch fetch all required data upfront
+      const [teachers, subjects, studentGroups, classrooms] = await Promise.all([
+        User.find({ role: 'teacher' }).lean(),
+        Subject.find({}).lean(),
+        StudentGroup.find({}).lean(),
+        Classroom.find({}).lean()
       ]);
       
       this.teachers = teachers;
       const studentGroup = studentGroups[0];
       if (!studentGroup) throw new Error('No student group found');
+      
+      // Pre-cache classrooms
+      this.classrooms = classrooms;
 
       const { teacherLimits, classroomAvailability } = await this.initializeTracking();
       this.teacherLimits = teacherLimits;

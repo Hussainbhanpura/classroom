@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import Layout from '../../components/layout/Layout';
-import axiosInstance from '../../utils/axios';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import Layout from "../../components/layout/Layout";
+import axiosInstance from "../../utils/axios";
+import toast from "react-hot-toast";
 
 const ManageStudents = () => {
   const [students, setStudents] = useState([]);
@@ -9,19 +9,19 @@ const ManageStudents = () => {
   const [loading, setLoading] = useState(true);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [groupFormData, setGroupFormData] = useState({
-    name: '',
-    academicYear: ''
+    name: "",
+    academicYear: "",
   });
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'student',
+    name: "",
+    email: "",
+    password: "",
+    role: "student",
     metadata: {
-      studentGroup: '',
-      year: '',
-      section: ''
-    }
+      studentGroup: "",
+      year: "",
+      section: "",
+    },
   });
 
   useEffect(() => {
@@ -32,11 +32,13 @@ const ManageStudents = () => {
   const fetchStudentGroups = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get('/api/student-groups');
+      const response = await axiosInstance.get("/api/student-groups");
       setStudentGroups(response.data);
     } catch (error) {
-      console.error('Error fetching student groups:', error);
-      toast.error(error.response?.data?.message || 'Failed to fetch student groups');
+      console.error("Error fetching student groups:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to fetch student groups"
+      );
     } finally {
       setLoading(false);
     }
@@ -45,11 +47,11 @@ const ManageStudents = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get('/api/users/students');
+      const response = await axiosInstance.get("/api/users/students");
       setStudents(response.data);
     } catch (error) {
-      console.error('Error fetching students:', error);
-      toast.error(error.response?.data?.message || 'Failed to fetch students');
+      console.error("Error fetching students:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch students");
     } finally {
       setLoading(false);
     }
@@ -59,39 +61,40 @@ const ManageStudents = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      await axiosInstance.post('/register', formData);
-      toast.success('Student added successfully');
+      await axiosInstance.post("/api/users/students", formData);
+      toast.success("Student added successfully");
       fetchStudents();
       setFormData({
-        name: '',
-        email: '',
-        password: '',
-        role: 'student',
+        name: "",
+        email: "",
+        password: "",
+        role: "student",
         metadata: {
-          studentGroup: '',
-          year: '',
-          section: ''
-        }
+          studentGroup: "",
+          year: "",
+          section: "",
+        },
       });
     } catch (error) {
-      console.error('Error adding student:', error);
-      toast.error(error.response?.data?.message || 'Failed to add student');
+      console.error("Error adding student:", error);
+      toast.error(error.response?.data?.message || "Failed to add student");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (studentId) => {
-    if (!window.confirm('Are you sure you want to delete this student?')) return;
-    
+    if (!window.confirm("Are you sure you want to delete this student?"))
+      return;
+
     try {
       setLoading(true);
-      await axiosInstance.delete(`/users/student/${studentId}`);
-      toast.success('Student deleted successfully');
+      await axiosInstance.delete(`/api/users/students/${studentId}`);
+      toast.success("Student deleted successfully");
       fetchStudents();
     } catch (error) {
-      console.error('Error deleting student:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete student');
+      console.error("Error deleting student:", error);
+      toast.error(error.response?.data?.message || "Failed to delete student");
     } finally {
       setLoading(false);
     }
@@ -101,14 +104,14 @@ const ManageStudents = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      await axiosInstance.post('/api/student-groups', groupFormData);
-      toast.success('Student group created successfully');
+      await axiosInstance.post("/api/student-groups", groupFormData);
+      toast.success("Student group created successfully");
       fetchStudentGroups();
       setShowGroupModal(false);
-      setGroupFormData({ name: '', academicYear: '' });
+      setGroupFormData({ name: "", academicYear: "" });
     } catch (error) {
-      console.error('Error creating student group:', error);
-      toast.error('Failed to create student group');
+      console.error("Error creating student group:", error);
+      toast.error("Failed to create student group");
     } finally {
       setLoading(false);
     }
@@ -116,19 +119,19 @@ const ManageStudents = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    if (name.startsWith('metadata.')) {
-      const metadataField = name.split('.')[1];
-      setFormData(prev => ({
+    if (name.startsWith("metadata.")) {
+      const metadataField = name.split(".")[1];
+      setFormData((prev) => ({
         ...prev,
         metadata: {
           ...prev.metadata,
-          [metadataField]: value
-        }
+          [metadataField]: value,
+        },
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
@@ -137,9 +140,9 @@ const ManageStudents = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Manage Students</h1>
-        
+
         {loading && <div className="text-center">Loading...</div>}
-        
+
         <div className="grid md:grid-cols-2 gap-8">
           {/* Add Student Form */}
           <div className="bg-white p-6 rounded-lg shadow-md">
@@ -158,7 +161,7 @@ const ManageStudents = () => {
                   required
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Email
@@ -172,7 +175,7 @@ const ManageStudents = () => {
                   required
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Password
@@ -186,7 +189,7 @@ const ManageStudents = () => {
                   required
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Student Group
@@ -198,14 +201,14 @@ const ManageStudents = () => {
                   className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 >
                   <option value="">Select a group</option>
-                  {studentGroups.map(group => (
+                  {studentGroups.map((group) => (
                     <option key={group._id} value={group._id}>
                       {group.name} - {group.academicYear}
                     </option>
                   ))}
                 </select>
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Year
@@ -219,7 +222,7 @@ const ManageStudents = () => {
                   required
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Section
@@ -233,7 +236,7 @@ const ManageStudents = () => {
                   required
                 />
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
@@ -260,17 +263,21 @@ const ManageStudents = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map(student => (
+                  {students.map((student) => (
                     <tr key={student._id} className="border-b">
                       <td className="px-4 py-2">{student.name}</td>
                       <td className="px-4 py-2">{student.email}</td>
                       <td className="px-4 py-2">
-                        {student.metadata?.studentGroup ? 
-                          `${student.metadata.studentGroup.name} (${student.metadata.studentGroup.academicYear})` 
-                          : '-'}
+                        {student.metadata?.studentGroup
+                          ? `${student.metadata.studentGroup.name} (${student.metadata.studentGroup.academicYear})`
+                          : "-"}
                       </td>
-                      <td className="px-4 py-2">{student.metadata?.year || '-'}</td>
-                      <td className="px-4 py-2">{student.metadata?.section || '-'}</td>
+                      <td className="px-4 py-2">
+                        {student.metadata?.year || "-"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {student.metadata?.section || "-"}
+                      </td>
                       <td className="px-4 py-2">
                         <button
                           onClick={() => handleDelete(student._id)}
@@ -291,25 +298,39 @@ const ManageStudents = () => {
         {showGroupModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <div className="bg-white rounded-lg p-6 w-96">
-              <h2 className="text-xl font-semibold mb-4">Add New Student Group</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Add New Student Group
+              </h2>
               <form onSubmit={handleCreateGroup} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Group Name</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Group Name
+                  </label>
                   <input
                     type="text"
                     value={groupFormData.name}
-                    onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
+                    onChange={(e) =>
+                      setGroupFormData({
+                        ...groupFormData,
+                        name: e.target.value,
+                      })
+                    }
                     className="form-input"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Academic Year</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Academic Year
+                  </label>
                   <input
                     type="text"
                     value={groupFormData.academicYear}
                     onChange={(e) =>
-                      setGroupFormData({ ...groupFormData, academicYear: e.target.value })
+                      setGroupFormData({
+                        ...groupFormData,
+                        academicYear: e.target.value,
+                      })
                     }
                     className="form-input"
                     required
