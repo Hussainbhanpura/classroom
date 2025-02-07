@@ -62,10 +62,11 @@ const ManageSubjects = () => {
 
   const fetchSubjects = async () => {
     try {
-      const token = getToken(); // Ensure token is fetched here
+      const token = getToken();
       const response = await axios.get("http://localhost:3001/api/subjects", {
         headers: { Authorization: `Bearer ${token}` },
       });
+      console.log('Fetched subjects:', response.data);
       setSubjects(response.data);
     } catch (error) {
       console.error("Error fetching subjects:", error);
@@ -78,19 +79,27 @@ const ManageSubjects = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = getToken(); // Ensure token is fetched here
+      const token = getToken();
       const equipment = [...formData.requiredEquipment];
 
-      // Add additional equipment input
       if (equipmentInput.trim()) {
         equipment.push(...equipmentInput.split(",").map((item) => item.trim()));
       }
 
-      // Remove duplicates and prepare data for submission
+      // Ensure we have a student group selected
+      if (!selectedStudentGroup) {
+        toast.error("Please select a student group");
+        return;
+      }
+
       const dataToSend = {
-        ...formData,
-        requiredEquipment: Array.from(new Set(equipment)), // Remove duplicates
+        name: formData.name,
+        description: formData.description,
+        requiredEquipment: Array.from(new Set(equipment)),
+        studentGroup: selectedStudentGroup
       };
+
+      console.log('Sending data:', dataToSend);
 
       const response = await axios.post(
         "http://localhost:3001/api/subjects",
@@ -103,13 +112,16 @@ const ManageSubjects = () => {
         }
       );
 
+      console.log('Response:', response.data);
       toast.success("Subject added successfully");
       fetchSubjects();
+      
+      // Reset form
       setFormData({
         name: "",
         description: "",
         requiredEquipment: [],
-        studentGroup: "",
+        studentGroup: ""
       });
       setEquipmentInput("");
       setSelectedStudentGroup(null);
@@ -145,8 +157,13 @@ const ManageSubjects = () => {
   };
 
   const handleStudentGroupChange = (e) => {
-    setSelectedStudentGroup(e.target.value);
-    setFormData((prev) => ({ ...prev, studentGroup: e.target.value }));
+    const groupId = e.target.value;
+    console.log('Selected group ID:', groupId);
+    setSelectedStudentGroup(groupId);
+    setFormData(prev => ({
+      ...prev,
+      studentGroup: groupId
+    }));
   };
 
   return (
@@ -236,19 +253,19 @@ const ManageSubjects = () => {
               <label className="block text-sm font-medium text-gray-700">
                 Student Group
               </label>
-              <select
-                value={selectedStudentGroup}
+                <select
+                value={selectedStudentGroup || ""}
                 onChange={handleStudentGroupChange}
                 className="form-input"
-              >
+                >
                 <option value="">Select a student group</option>
                 {studentGroups.map((group) => (
                   <option key={group._id} value={group._id}>
-                    {group.name || group.academicYear}{" "}
-                    {/* Use group name or academic year */}
+                  {group.name} - {group.academicYear}
                   </option>
                 ))}
-              </select>
+                </select>
+
             </div>
 
             <button

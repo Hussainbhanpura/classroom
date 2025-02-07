@@ -33,6 +33,7 @@ const ManageStudents = () => {
     try {
       setLoading(true);
       const response = await axiosInstance.get("/api/student-groups");
+      console.log(response.data)
       setStudentGroups(response.data);
     } catch (error) {
       console.error("Error fetching student groups:", error);
@@ -84,20 +85,26 @@ const ManageStudents = () => {
   };
 
   const handleDelete = async (studentId) => {
+    if (!studentId) {
+      toast.error('Invalid student ID');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
-      await axiosInstance.delete(`/api/users/${studentId}`, {
+      await axiosInstance.delete(`/api/users/students/${studentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Update the students list after successful deletion
-      setStudents(students.filter(student => student._id !== studentId));
+      // Update students list immediately after successful deletion
+      setStudents(prevStudents => prevStudents.filter(student => student.id !== studentId));
       toast.success('Student deleted successfully');
     } catch (error) {
       console.error('Error deleting student:', error);
       toast.error(error.response?.data?.message || 'Failed to delete student');
     }
   };
+
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();

@@ -17,9 +17,9 @@ const StudentGroupSchema = new Schema({
   },
   subjects: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Subject',
-    required: true
+    ref: 'Subject'
   }],
+
   timetable: [[{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'TimetableEntry'

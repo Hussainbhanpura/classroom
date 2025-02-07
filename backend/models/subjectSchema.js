@@ -27,6 +27,11 @@ const SubjectSchema = new Schema({
     type: [String],
     default: []
   },
+  studentGroup: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'StudentGroup',
+    default: null
+  },
   lecturesPerWeek: {
     type: Number,
     default: 3,

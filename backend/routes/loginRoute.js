@@ -219,14 +219,18 @@ router.get('/users/students', auth, isAdmin, async (req, res) => {
     
     // Transform the response to include only necessary data
     const transformedStudents = populatedStudents.map(student => ({
-      id: student._id,
+      _id: student._id,
       name: student.name,
       email: student.email,
-      group: student.metadata?.studentGroup ? {
-        id: student.metadata.studentGroup._id,
+      metadata: {
+      studentGroup: student.metadata?.studentGroup ? {
+        _id: student.metadata.studentGroup._id,
         name: student.metadata.studentGroup.name,
         academicYear: student.metadata.studentGroup.academicYear
       } : null,
+      year: student.metadata?.year,
+      section: student.metadata?.section
+      },
       createdAt: student.createdAt
     }));
 
