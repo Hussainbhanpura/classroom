@@ -120,6 +120,7 @@ const GenerateTimetable = () => {
                   checked={selectedGroups.includes(group._id)}
                   onChange={() => handleGroupChange(group._id)}
                   className="form-checkbox"
+                  disabled={loading} // Disable checkboxes during loading
                 />
                 <span>{group.name}</span>
               </label>
@@ -132,12 +133,13 @@ const GenerateTimetable = () => {
           <h2 className="text-xl font-semibold mb-4">Select Subjects</h2>
           <div className="space-y-2">
             {subjects.map((subject) => (
-              <label key={subject._id} className="flex items-center space-x-2">
+              <label key={subject.id} className="flex items-center space-x-2">
                 <input
                   type="checkbox"
                   checked={selectedSubjects.includes(subject._id)}
                   onChange={() => handleSubjectChange(subject._id)}
                   className="form-checkbox"
+                  disabled={loading} // Disable checkboxes during loading
                 />
                 <span>{subject.name}</span>
               </label>
@@ -168,7 +170,11 @@ const GenerateTimetable = () => {
             : "bg-blue-600 hover:bg-blue-700"
         }`}
       >
-        {loading ? "Generating..." : "Generate Timetable"}
+        {loading ? (
+          <span className="animate-spin">⏳</span>
+        ) : (
+          "Generate Timetable"
+        )}
       </button>
     </div>
   );

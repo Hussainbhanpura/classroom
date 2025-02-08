@@ -51,6 +51,7 @@ const ManageTimetable = () => {
       const response = await axios.get('/api/timetable');
       if (response.data && Array.isArray(response.data.timetable)) {
         setTimetable(response.data.timetable);
+        console.log(response.data);
       } else {
         setTimetable(null);
       }
@@ -145,9 +146,9 @@ const ManageTimetable = () => {
                             <td key={`${day}-${time}`} className="px-6 py-4">
                               {content ? (
                                 <div className="space-y-1">
-                                  <div className="font-medium text-blue-600">{content.subject}</div>
-                                  <div className="text-sm text-gray-600">{content.teacher}</div>
-                                  <div className="text-xs text-gray-500">Room {content.classroom}</div>
+                                  <div className="font-medium text-blue-600">{content.subject?.name || 'No Subject'}</div>
+                                  <div className="text-sm text-gray-600">{content.teacher?.name || 'No Teacher'}</div>
+                                  <div className="text-xs text-gray-500">Room {content.classroom?.name || 'No Classroom'}</div>
                                 </div>
                               ) : (
                                 <div className="text-gray-400 text-sm">No class</div>

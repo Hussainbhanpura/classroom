@@ -20,8 +20,16 @@ router.use(auth);
 router.get('/subjects', async (req, res) => {
   try {
     console.log('GET /subjects - User:', req.user);
-    const subjects = await Subject.find()
+    const { studentGroup } = req.query;
+    
+    let query = {};
+    if (studentGroup) {
+      query.studentGroup = studentGroup;
+    }
+    
+    const subjects = await Subject.find(query)
       .populate('studentGroup', 'name academicYear');
+    
     res.json(subjects);
   } catch (error) {
     console.error('Error fetching subjects:', error);
@@ -32,8 +40,7 @@ router.get('/subjects', async (req, res) => {
 // Create a new subject (admin only)
 router.post('/subjects', isAdmin, async (req, res) => {
   try {
-    console.log('POST /subjects - User:', req.user);
-    console.log('Creating subject with body:', JSON.stringify(req.body, null, 2));
+    console.log('POST /subjects - Request body:', JSON.stringify(req.body, null, 2));
     
     if (!req.body.name) {
       return res.status(400).json({ message: 'Subject name is required' });
@@ -41,46 +48,58 @@ router.post('/subjects', isAdmin, async (req, res) => {
 
     const { name, description, requiredEquipment, studentGroup } = req.body;
 
+    // First check if the student group exists
+    if (studentGroup) {
+      const groupExists = await StudentGroup.findById(studentGroup);
+      if (!groupExists) {
+        return res.status(400).json({ message: 'Student group not found' });
+      }
+    }
+
     const existingSubject = await Subject.findOne({ name });
     if (existingSubject) {
       return res.status(400).json({ message: 'Subject with this name already exists' });
     }
 
+    // Create the subject with all required fields
     const subject = new Subject({
       name,
       description: description || '',
       requiredEquipment: requiredEquipment || [],
-      studentGroup: studentGroup || null,
-      isActive: true
+      studentGroup, // Add this field explicitly
+      isActive: true,
+      code: '',
+      department: '',
+      credits: 0,
+      lecturesPerWeek: 3
     });
 
-    console.log('Saving subject with data:', JSON.stringify(subject.toObject(), null, 2));
+    console.log('Creating subject with data:', JSON.stringify(subject.toObject(), null, 2));
     const savedSubject = await subject.save();
 
-    // If studentGroup is provided, add subject to the group's subjects array
+    // Update the student group's subjects array
     if (studentGroup) {
-      console.log('Adding subject to student group:', studentGroup);
-      try {
-        const updatedGroup = await StudentGroup.findByIdAndUpdate(
-          studentGroup,
-          { $addToSet: { subjects: savedSubject._id } },
-          { new: true }
-        ).exec();
-        
-        if (!updatedGroup) {
-          console.error('Student group not found:', studentGroup);
-        } else {
-          console.log('Updated student group:', JSON.stringify(updatedGroup.toObject(), null, 2));
-        }
-      } catch (error) {
-        console.error('Error updating student group:', error);
-      }
+      console.log('Updating student group:', studentGroup);
+      const updatedGroup = await StudentGroup.findByIdAndUpdate(
+        studentGroup,
+        { $addToSet: { subjects: savedSubject._id } },
+        { new: true }
+      );
+      console.log('Updated student group result:', updatedGroup ? 'Success' : 'Failed');
     }
 
-    res.status(201).json(savedSubject);
+    // Return the populated subject
+    const populatedSubject = await Subject.findById(savedSubject._id)
+      .populate('studentGroup', 'name academicYear');
+
+    res.status(201).json(populatedSubject);
   } catch (error) {
     console.error('Error creating subject:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      details: error.stack 
+    });
   }
 });
 

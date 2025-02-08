@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../components/layout/Layout';
 import axios from '../../utils/axios';  
 import toast from 'react-hot-toast';
+import { getToken } from '../../utils/auth';
 
 const ManageTeachers = () => {
   const [teachers, setTeachers] = useState([]);
@@ -87,10 +88,10 @@ const ManageTeachers = () => {
         fetchTeachers();
       } catch (error) {
         console.error('Error deleting teacher:', error);
-        toast.error('Failed to delete teacher');
+        toast.error(error?.response?.data?.message || 'Failed to delete teacher');
+        }
       }
-    }
-  };
+      };
 
   const handleSubjectsChange = (e) => {
     const selectedSubjects = Array.from(e.target.selectedOptions, option => option.value);
@@ -145,24 +146,46 @@ const ManageTeachers = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Student Group</label>
-              <select
+                <select
                 value={formData.metadata.studentGroup}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const selectedGroup = e.target.value;
                   setFormData({
-                    ...formData,
-                    metadata: {
-                      ...formData.metadata,
-                      studentGroup: selectedGroup
-                    }
+                  ...formData,
+                  metadata: {
+                    ...formData.metadata,
+                    studentGroup: selectedGroup,
+                    subjects: [] // Reset subjects when group changes
+                  }
                   });
-                  // Fetch subjects for the selected student group
-                  const selectedGroupSubjects = studentGroups.find(group => group._id === selectedGroup)?.subjects || [];
-                  setSubjects(selectedGroupSubjects);
+
+                  if (selectedGroup) {
+                  try {
+                    // Find the selected group and its subjects
+                    const group = studentGroups.find(g => g._id === selectedGroup);
+                    if (group && group.subjects) {
+                    // Fetch full subject details if needed
+                    const response = await axios.get('/api/subjects', {
+                      headers: { Authorization: `Bearer ${getToken()}` }
+                    });
+                    const allSubjects = response.data;
+                    // Filter subjects that belong to the selected group
+                    const groupSubjects = allSubjects.filter(subject => 
+                      subject.studentGroup && subject.studentGroup._id === selectedGroup
+                    );
+                    setSubjects(groupSubjects);
+                    }
+                  } catch (error) {
+                    console.error('Error fetching subjects for group:', error);
+                    toast.error('Failed to fetch subjects for the selected group');
+                  }
+                  } else {
+                  setSubjects([]); // Clear subjects if no group is selected
+                  }
                 }}
                 className="form-select"
                 required
-              >
+                >
                 <option value="">Select a group</option>
                 {studentGroups.map(group => (
                   <option key={group._id} value={group._id}>{group.name}</option>
@@ -234,7 +257,7 @@ const ManageTeachers = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
-                          onClick={() => handleDelete(teacher._id)}
+                          onClick={() => handleDelete(teacher.id)}
                           className="text-red-600 hover:text-red-900"
                         >
                           Delete

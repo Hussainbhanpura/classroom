@@ -14,7 +14,7 @@ router.use(auth);
 // Get current timetable
 router.get('/timetable', async (req, res) => {
   try {
-    // Get the active timetable
+    // Get the active timetable (filter by 'status' if needed)
     const activeTimetable = await Timetable.findOne({ status: 'active' })
       .sort({ createdAt: -1 })
       .lean();
@@ -32,6 +32,10 @@ router.get('/timetable', async (req, res) => {
       .sort({ dayName: 1, timeSlotName: 1 })
       .lean();
 
+    if (!slots || slots.length === 0) {
+      return res.status(404).json({ message: 'No slots found for the active timetable' });
+    }
+
     // Group slots by student group
     const groupedSlots = {};
 
@@ -47,9 +51,9 @@ router.get('/timetable', async (req, res) => {
       groupedSlots[studentGroupId].schedule.push({
         day: slot.dayName,
         timeSlot: slot.timeSlotName,
-        teacher: slot.teacherId.name,
-        subject: slot.subjectId.name,
-        classroom: slot.classroomId.name
+        teacher: slot.teacherId,
+        subject: slot.subjectId,
+        classroom: slot.classroomId
       });
     });
 
@@ -63,6 +67,7 @@ router.get('/timetable', async (req, res) => {
       });
     });
 
+    // Return the timetable with sorted slots
     res.json({
       timetableId: activeTimetable._id,
       academicYear: activeTimetable.academicYear,
@@ -74,6 +79,7 @@ router.get('/timetable', async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch timetable' });
   }
 });
+
 
 // Get teacher's schedule
 router.get('/teacher/schedule', auth, async (req, res) => {

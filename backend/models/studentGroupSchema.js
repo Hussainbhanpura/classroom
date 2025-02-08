@@ -15,10 +15,13 @@ const StudentGroupSchema = new Schema({
     type: Boolean,
     default: true
   },
-  subjects: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Subject'
-  }],
+  subjects: {
+    type: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subject'
+    }],
+    default: [] // Ensure subjects array is initialized as empty array
+  },
 
   timetable: [[{
     type: mongoose.Schema.Types.ObjectId,

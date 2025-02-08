@@ -322,15 +322,33 @@ router.post('/users/students', auth, isAdmin, async (req, res) => {
 });
 
 // Delete teacher
-router.delete('/users/teacher/:id', isAdmin, async (req, res) => {
+
+router.delete('/users/teacher/:id', auth, isAdmin, async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.params.id);
+    // Check if the authorization header is present
+    const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ message: 'No token, authorization denied' });
+    }
+
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Make sure to have a JWT_SECRET environment variable
+
+
+    // Find and delete the teacher by ID
+    const teacher = await User.findByIdAndDelete(req.params.id);
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+
     res.json({ message: 'Teacher deleted successfully' });
   } catch (error) {
     console.error('Error deleting teacher:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 // Delete student
 router.delete('/users/students/:id', auth, isAdmin, async (req, res) => {
@@ -396,6 +414,7 @@ router.delete('/users/student/:id', isAdmin, async (req, res) => {
 // Add this route to handle student deletion
 router.delete('/users/:id', isAdmin, async (req, res) => {
   try {
+    
     const deletedUser = await User.findByIdAndDelete(req.params.id);
     
     if (!deletedUser) {
