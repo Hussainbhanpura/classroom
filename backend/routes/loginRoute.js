@@ -15,7 +15,8 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     // Check if email exists in Bloom filter
-    if (!mightContainEmail(email)) {
+    const emailMightExist = await mightContainEmail(email);
+    if (!emailMightExist) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 

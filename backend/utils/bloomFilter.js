@@ -13,17 +13,19 @@ const OPTIMAL_SIZE = Math.ceil(-(EXPECTED_ITEMS * Math.log(FALSE_POSITIVE_RATE))
 // Using formula: k = (size/n) * ln(2)
 const OPTIMAL_HASH_FUNCTIONS = Math.ceil((OPTIMAL_SIZE / EXPECTED_ITEMS) * Math.log(2));
 
-let bloomFilter;
+let bloomFilter = new BloomFilter(OPTIMAL_SIZE, OPTIMAL_HASH_FUNCTIONS);
+let isInitialized = false;
 
 // Function to initialize Bloom filter with existing emails
 export async function initializeBloomFilter() {
+  if (isInitialized) return;
+  
   try {
     const users = await User.find({}, 'email');
-    // Create a new Bloom Filter with optimal size and number of hash functions
-    bloomFilter = new BloomFilter(OPTIMAL_SIZE, OPTIMAL_HASH_FUNCTIONS);
     users.forEach(user => {
       bloomFilter.add(user.email);
     });
+    isInitialized = true;
     console.log('Bloom filter initialized successfully');
   } catch (error) {
     console.error('Error initializing Bloom filter:', error);
@@ -33,16 +35,14 @@ export async function initializeBloomFilter() {
 
 // Function to add email to Bloom filter
 export function addEmail(email) {
-  if (!bloomFilter) {
-    initializeBloomFilter();
-  }
+  if (!email) return;
   bloomFilter.add(email);
 }
 
 // Function to check if email might exist in Bloom filter
-export function mightContainEmail(email) {
-  if (!bloomFilter) {
-    initializeBloomFilter();
+export async function mightContainEmail(email) {
+  if (!isInitialized) {
+    await initializeBloomFilter();
   }
   return bloomFilter.has(email);
 }
