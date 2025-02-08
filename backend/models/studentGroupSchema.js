@@ -20,15 +20,22 @@ const StudentGroupSchema = new Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Subject'
     }],
-    default: [] // Ensure subjects array is initialized as empty array
+    default: []
   },
-
-  timetable: [[{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'TimetableEntry'
-  }]]
+  timetable: {
+    type: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'TimetableSlot'
+    }],
+    default: []
+  }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
+
+// Add index for faster lookups
+StudentGroupSchema.index({ name: 1, academicYear: 1 }, { unique: true });
 
 export default mongoose.model('StudentGroup', StudentGroupSchema);

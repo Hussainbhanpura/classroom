@@ -94,8 +94,11 @@ class TimetableGenerator {
       ]);
       
       this.teachers = teachers;
-      const studentGroup = studentGroups[0];
-      if (!studentGroup) throw new Error('No student group found');
+      
+      // Clear existing timetable slots for all student groups
+      await Promise.all(studentGroups.map(group => 
+        StudentGroup.findByIdAndUpdate(group._id, { $set: { timetable: [] } })
+      ));
       
       // Pre-cache classrooms
       this.classrooms = classrooms;
@@ -104,21 +107,32 @@ class TimetableGenerator {
       this.teacherLimits = teacherLimits;
       this.classroomAvailability = classroomAvailability;
 
-      // --- Round-robin scheduling ---
-      // For each time slot index, loop through all days.
-      for (let slotIndex = 0; slotIndex < this.timeSlots.length; slotIndex++) {
-        for (const day of this.days) {
-          const timeSlot = this.timeSlots[slotIndex];
-          console.log(`\n📅 ${day} - Time slot: ${timeSlot}`);
+      const allSlots = [];
 
-          // Try to continue an existing assignment on that day if available.
-          const previousAssignment = await this.tryContinuePreviousForDay(day, timeSlot, studentGroup);
-          if (previousAssignment) continue;
+      // Generate timetable for each student group
+      for (const studentGroup of studentGroups) {
+        console.log(`\n📚 Generating timetable for group: ${studentGroup.name}`);
+        
+        // Reset teacher limits for each group
+        await this.initializeTracking();
 
-          // Find the best teacher candidate for this day/time slot.
-          const bestTeacher = await this.findBestTeacher(day, timeSlot);
-          if (!bestTeacher) continue;
-          await this.assignSlot(bestTeacher, day, timeSlot, studentGroup);
+        // For each time slot index, loop through all days
+        for (let slotIndex = 0; slotIndex < this.timeSlots.length; slotIndex++) {
+          for (const day of this.days) {
+            const timeSlot = this.timeSlots[slotIndex];
+            console.log(`\n📅 ${day} - Time slot: ${timeSlot}`);
+
+            const previousAssignment = await this.tryContinuePreviousForDay(day, timeSlot, studentGroup);
+            if (previousAssignment) continue;
+
+            const bestTeacher = await this.findBestTeacher(day, timeSlot);
+            if (!bestTeacher) continue;
+            
+            const assignment = await this.assignSlot(bestTeacher, day, timeSlot, studentGroup);
+            if (assignment) {
+              allSlots.push(assignment);
+            }
+          }
         }
       }
 
@@ -134,12 +148,12 @@ class TimetableGenerator {
   async tryContinuePreviousForDay(day, timeSlot, studentGroup) {
     for (const teacher of this.teachers) {
       const teacherPref = await this.getTeacherPreference(teacher, day, timeSlot);
-      if (teacherPref === this.UNAVAILABLE) continue; // Skip if teacher is unavailable
+      if (teacherPref === this.UNAVAILABLE) continue;
 
       const teacherId = teacher._id.toString();
       const limits = this.teacherLimits.get(teacherId);
       const dayInfo = limits.daily.get(day);
-      if (dayInfo.count === 0) continue; // Only continue if teacher already has an assignment today
+      if (dayInfo.count === 0) continue;
 
       if (
         dayInfo.count >= limits.maxDaily ||
@@ -150,11 +164,11 @@ class TimetableGenerator {
       const classroom = await this.findAvailableClassroom(day, timeSlot);
       if (!classroom) continue;
 
-      // Pick a subject for the teacher (here simply the first one)
       const subject = await this.selectSubject(teacher);
       if (!subject) continue;
 
-      await TimetableSlot.create({
+      // Create the timetable slot
+      const slot = await TimetableSlot.create({
         timetableId: this.timetableId,
         dayName: day,
         timeSlotName: timeSlot,
@@ -163,6 +177,12 @@ class TimetableGenerator {
         studentGroupId: studentGroup._id,
         classroomId: classroom._id
       });
+
+      // Add the slot to student group's timetable array
+      await StudentGroup.findByIdAndUpdate(
+        studentGroup._id,
+        { $push: { timetable: slot._id } }
+      );
 
       dayInfo.count++;
       dayInfo.lastIndex = this.timeSlots.indexOf(timeSlot);
@@ -228,7 +248,8 @@ class TimetableGenerator {
     const classroom = await this.findAvailableClassroom(day, timeSlot);
     if (!classroom) return null;
 
-    await TimetableSlot.create({
+    // Create the timetable slot
+    const slot = await TimetableSlot.create({
       timetableId: this.timetableId,
       dayName: day,
       timeSlotName: timeSlot,
@@ -237,6 +258,12 @@ class TimetableGenerator {
       studentGroupId: studentGroup._id,
       classroomId: classroom._id
     });
+
+    // Add the slot to student group's timetable array
+    await StudentGroup.findByIdAndUpdate(
+      studentGroup._id,
+      { $push: { timetable: slot._id } }
+    );
 
     const limits = this.teacherLimits.get(teacherId);
     const dayInfo = limits.daily.get(day);
@@ -283,13 +310,33 @@ class TimetableGenerator {
   }
 
   async getFormattedTimetable() {
-    return TimetableSlot.find()
-      .populate('teacherId', 'name')
-      .populate('subjectId', 'name')
-      .populate('classroomId', 'name')
-      .populate('studentGroupId', 'name')
-      .sort({ dayName: 1, timeSlotName: 1 })
+    // Get all student groups with populated timetable slots
+    const studentGroups = await StudentGroup.find()
+      .populate({
+        path: 'timetable',
+        populate: [
+          { path: 'teacherId', select: 'name' },
+          { path: 'subjectId', select: 'name' },
+          { path: 'classroomId', select: 'name' }
+        ]
+      })
       .lean();
+
+    // Transform the data into the required format
+    const formattedSlots = [];
+    for (const group of studentGroups) {
+      if (group.timetable && group.timetable.length > 0) {
+        formattedSlots.push(...group.timetable);
+      }
+    }
+
+    // Sort all slots by day and time
+    return formattedSlots.sort((a, b) => {
+      const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      const dayDiff = dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName);
+      if (dayDiff !== 0) return dayDiff;
+      return a.timeSlotName.localeCompare(b.timeSlotName);
+    });
   }
 }
 

@@ -54,8 +54,8 @@ router.get('/preferences', async (req, res) => {
       });
       return res.json({ 
         availableTimeSlots: defaultPreferences,
-        maxSlotsPerDay: 6,
-        maxSlotsPerWeek: 25
+        maxSlotsPerDay: 2,
+        maxSlotsPerWeek: 8
       });
     }
 

@@ -32,7 +32,8 @@ const timetableSlotSchema = new mongoose.Schema({
   studentGroupId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'StudentGroup',
-    required: true
+    required: true,
+    index: true // Add index for faster lookups
   },
   classroomId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -40,12 +41,22 @@ const timetableSlotSchema = new mongoose.Schema({
     required: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
 // Create indexes for faster queries
 timetableSlotSchema.index({ timetableId: 1, dayName: 1, timeSlotName: 1 });
 timetableSlotSchema.index({ dayName: 1, timeSlotName: 1, studentGroupId: 1 }, { unique: true });
 timetableSlotSchema.index({ teacherId: 1, dayName: 1 });
+
+// Add virtual for reverse population
+timetableSlotSchema.virtual('studentGroup', {
+  ref: 'StudentGroup',
+  localField: 'studentGroupId',
+  foreignField: '_id',
+  justOne: true
+});
 
 export const TimetableSlot = mongoose.model('TimetableSlot', timetableSlotSchema);
