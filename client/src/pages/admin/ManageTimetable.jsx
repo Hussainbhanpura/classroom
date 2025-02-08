@@ -64,6 +64,14 @@ const ManageTimetable = () => {
   };
 
   const getSlotContent = (day, timeSlot, groupId) => {
+    // Check if it's break time
+    if (timeSlot === '12:00 PM') {
+      return {
+        isBreak: true,
+        message: 'Break Time'
+      };
+    }
+
     if (!timetable || !Array.isArray(timetable)) {
       return null;
     }
@@ -144,14 +152,18 @@ const ManageTimetable = () => {
                           const content = getSlotContent(day, time, group.studentGroup);
                           return (
                             <td key={`${day}-${time}`} className="px-6 py-4">
-                              {content ? (
-                                <div className="space-y-1">
-                                  <div className="font-medium text-blue-600">{content.subject?.name || 'No Subject'}</div>
-                                  <div className="text-sm text-gray-600">{content.teacher?.name || 'No Teacher'}</div>
-                                  <div className="text-xs text-gray-500">Room {content.classroom?.name || 'No Classroom'}</div>
-                                </div>
+                              {content?.isBreak ? (
+                              <div className="bg-yellow-100 p-3 rounded-lg">
+                                <div className="font-medium text-yellow-800 text-center">Break Time</div>
+                              </div>
+                              ) : content ? (
+                              <div className="space-y-1">
+                                <div className="font-medium text-blue-600">{content.subject?.name || 'No Subject'}</div>
+                                <div className="text-sm text-gray-600">{content.teacher?.name || 'No Teacher'}</div>
+                                <div className="text-xs text-gray-500">Room {content.classroom?.name || 'No Classroom'}</div>
+                              </div>
                               ) : (
-                                <div className="text-gray-400 text-sm">No class</div>
+                              <div className="text-gray-400 text-sm">No class</div>
                               )}
                             </td>
                           );

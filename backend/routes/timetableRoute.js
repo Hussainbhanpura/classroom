@@ -94,56 +94,57 @@ router.get('/teacher/schedule', auth, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch schedule' });
   }
 });
-
 // Get student's schedule
 router.get('/student/schedule', auth, async (req, res) => {
   try {
     const studentId = req.user.id;
 
-    // Get student's group with populated timetable
-    const student = await User.findById(studentId)
-      .populate('metadata.studentGroup')
-      .lean();
-
+    // Get student's group
+    const student = await User.findById(studentId).populate('metadata.studentGroup');
     if (!student?.metadata?.studentGroup) {
       return res.status(400).json({ message: 'Student not assigned to any group' });
     }
 
-    // Get the student group's timetable
-    const studentGroup = await StudentGroup.findById(student.metadata.studentGroup._id)
-      .populate({
-        path: 'timetable',
-        populate: [
-          { path: 'teacherId', select: 'name' },
-          { path: 'subjectId', select: 'name' },
-          { path: 'classroomId', select: 'name' }
-        ]
-      })
+    const studentGroupId = student.metadata.studentGroup._id;
+
+    // Get the active timetable first
+    const activeTimetable = await Timetable.findOne({ status: 'active' })
+      .sort({ createdAt: -1 })
       .lean();
 
-    const schedule = studentGroup.timetable.map(slot => ({
+    if (!activeTimetable) {
+      return res.status(404).json({ message: 'No active timetable found' });
+    }
+
+    // Get all slots for this student's group
+    const slots = await TimetableSlot.find({
+      timetableId: activeTimetable._id,
+      studentGroupId: studentGroupId
+    })
+      .populate('teacherId', 'name')
+      .populate('subjectId', 'name')
+      .populate('classroomId', 'name')
+      .sort({ dayName: 1, timeSlotName: 1 })
+      .lean();
+
+    // Format the slots for frontend
+    const formattedSchedule = slots.map(slot => ({
       day: slot.dayName,
       timeSlot: slot.timeSlotName,
       subject: slot.subjectId.name,
       teacher: slot.teacherId.name,
       room: slot.classroomId.name
-    })).sort((a, b) => {
-      const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-      const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
-      if (dayDiff !== 0) return dayDiff;
-      return a.timeSlot.localeCompare(b.timeSlot);
-    });
+    }));
 
     res.json({
       studentGroup: student.metadata.studentGroup.name,
-      schedule
+      schedule: formattedSchedule
     });
   } catch (error) {
     console.error('Error fetching student schedule:', error);
     res.status(500).json({ message: 'Failed to fetch schedule' });
   }
 });
-
 // Get timetable by student group ID
 router.get('/timetable/group/:groupId', auth, async (req, res) => {
   try {
@@ -156,16 +157,16 @@ router.get('/timetable/group/:groupId', auth, async (req, res) => {
 
     // Get student group with populated timetable
     const studentGroup = await StudentGroup.findById(groupId)
-        .populate({
-        path: 'timetable',
-        populate: [
-          { path: 'teacherId', select: 'name' },
-          { path: 'subjectId', select: 'name' },
-          { path: 'classroomId', select: 'name' }
-        ]
-        })
+      .populate({
+      path: 'timetable',
+      populate: [
+        { path: 'teacherId', select: 'name' },
+        { path: 'subjectId', select: 'name' },
+        { path: 'classroomId', select: 'name' }
+      ]
+      })
       .lean();
-      console.log(studentGroup);
+    console.log(studentGroup);
       
 
     if (!studentGroup) {

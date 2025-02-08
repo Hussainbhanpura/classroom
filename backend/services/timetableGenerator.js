@@ -10,7 +10,7 @@ class TimetableGenerator {
   constructor(timetableId = null) {
     this.days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     this.timeSlots = [
-      '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
+      '9:00 AM', '10:00 AM', '11:00 AM',
       '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'
     ];
     
@@ -299,9 +299,26 @@ class TimetableGenerator {
   }
 
   isClassroomAvailable(day, timeSlot) {
+    // Always return false for break time
+    if (timeSlot === '12:00 PM') {
+      return false;
+    }
     return [...this.classroomAvailability.values()].some(classroom =>
       classroom.slots.get(day).get(timeSlot)
     );
+  }
+
+  isSlotAvailable(teacherId, day, timeSlot) {
+    // Always return false for break time
+    if (timeSlot === '12:00 PM') {
+      return false;
+    }
+    
+    const limits = this.teacherLimits.get(teacherId);
+    if (!limits) return false;
+
+    const dayInfo = limits.daily.get(day);
+    return dayInfo.count < limits.maxDaily && limits.weekly < limits.maxWeekly;
   }
 
   async getTeachableSubjects(teacher) {

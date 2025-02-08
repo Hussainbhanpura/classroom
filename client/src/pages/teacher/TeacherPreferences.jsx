@@ -53,7 +53,12 @@ const TeacherPreferences = () => {
     }
   };
 
+  const isBreakTime = (timeSlot) => timeSlot === '12:00 PM';
+
   const handleCellClick = (day, time) => {
+    if (isBreakTime(time)) {
+      return; // Don't allow changes to break time slots
+    }
     setPreferences(prev => ({
       ...prev,
       [day]: {
@@ -231,17 +236,28 @@ const TeacherPreferences = () => {
                   <div className="bg-gray-50 p-3 text-sm font-medium text-gray-500">
                     {day}
                   </div>
-                  {timeSlots.map(time => (
-                    <div
+                    {timeSlots.map(time => 
+                    isBreakTime(time) ? (
+                      <div
+                      key={`${day}-${time}`}
+                      className="bg-yellow-100 p-3 text-center"
+                      >
+                      <span className="text-yellow-800 text-sm font-medium">
+                        Break Time
+                      </span>
+                      </div>
+                    ) : (
+                      <div
                       key={`${day}-${time}`}
                       onClick={() => handleCellClick(day, time)}
                       className={`${getCellColor(preferences[day][time])} p-3 text-center cursor-pointer transition-colors duration-150`}
-                    >
+                      >
                       <span className="text-xs">
                         {getCellIcon(preferences[day][time])}
                       </span>
-                    </div>
-                  ))}
+                      </div>
+                    )
+                    )}
                 </div>
               ))}
             </div>

@@ -86,3 +86,12 @@ export const isAdminOrTeacher = (req, res, next) => {
   }
   next();
 };
+
+// Middleware to check if user is a student
+export const isStudent = (req, res, next) => {
+  console.log('isStudent middleware - User role:', req.user.role);
+  if (req.user.role !== 'student') {
+    return res.status(403).json({ message: 'Access denied. Student only.' });
+  }
+  next();
+};

@@ -8,6 +8,7 @@ const ManageStudents = () => {
   const [studentGroups, setStudentGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const [showDeactivated, setShowDeactivated] = useState(false);
   const [groupFormData, setGroupFormData] = useState({
     name: "",
     academicYear: "",
@@ -27,7 +28,7 @@ const ManageStudents = () => {
   useEffect(() => {
     fetchStudents();
     fetchStudentGroups();
-  }, []);
+  }, [showDeactivated]);
 
   const fetchStudentGroups = async () => {
     try {
@@ -48,7 +49,7 @@ const ManageStudents = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get("/api/users/students");
+      const response = await axiosInstance.get(`/api/users/students${showDeactivated ? '?all=true' : ''}`);
       setStudents(response.data);
     } catch (error) {
       console.error("Error fetching students:", error);
@@ -92,16 +93,16 @@ const ManageStudents = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axiosInstance.delete(`/api/users/students/${studentId}`, {
+      await axiosInstance.patch(`/api/users/students/${studentId}/deactivate`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Update students list immediately after successful deletion
+      // Update students list immediately after successful deactivation
       setStudents(prevStudents => prevStudents.filter(student => student.id !== studentId));
-      toast.success('Student deleted successfully');
+      toast.success('Student deactivated successfully');
     } catch (error) {
-      console.error('Error deleting student:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete student');
+      console.error('Error deactivating student:', error);
+      toast.error(error.response?.data?.message || 'Failed to deactivate student');
     }
   };
 
@@ -310,7 +311,15 @@ const ManageStudents = () => {
 
           {/* Students List */}
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Current Students</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Current Students</h2>
+              <button
+              onClick={() => setShowDeactivated(!showDeactivated)}
+              className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+              >
+              {showDeactivated ? "Show Active Students" : "Show All Students"}
+              </button>
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full table-auto">
                 <thead>
@@ -324,8 +333,8 @@ const ManageStudents = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((student) => (
-                    <tr key={student._id} className="border-b">
+                    {students.map((student) => (
+                    <tr key={student._id} className={`border-b ${student.isDeactivated ? 'bg-gray-100' : ''}`}>
                       <td className="px-4 py-2">{student.name}</td>
                       <td className="px-4 py-2">{student.email}</td>
                       <td className="px-4 py-2">
@@ -339,14 +348,16 @@ const ManageStudents = () => {
                       <td className="px-4 py-2">
                         {student.metadata?.section || "-"}
                       </td>
-                      <td className="px-4 py-2">
-                        <button
+                        <td className="px-4 py-2">
+                        {!student.isDeactivated && (
+                          <button
                           onClick={() => handleDelete(student.id)}
                           className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
-                        >
-                          Delete
-                        </button>
-                      </td>
+                          >
+                          Deactivate
+                          </button>
+                        )}
+                        </td>
                     </tr>
                   ))}
                 </tbody>

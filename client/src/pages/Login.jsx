@@ -27,13 +27,17 @@ const Login = () => {
       const role = getUserRole();
       console.log('User role:', role);
       
-      if (role === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (role === 'teacher') {
-        navigate('/teacher/dashboard');
-      } else {
-        navigate('/dashboard');
-      }
+        if (role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (role === 'teacher') {
+          navigate('/teacher/dashboard');
+        } else if (role === 'student') {
+          console.log('Redirecting to student dashboard...');
+          navigate('/student/dashboard', { replace: true });
+        } else {
+          console.log('Unknown role:', role);
+          navigate('/login');
+        }
       
       toast.success('Login successful!');
     } catch (error) {

@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { Toaster } from 'react-hot-toast';
 
 // Admin Pages
 import ManageTeachers from './pages/admin/ManageTeachers';
@@ -13,23 +12,27 @@ import ManageTimetable from './pages/admin/ManageTimetable';
 // Teacher Pages
 import TeacherPreferences from './pages/teacher/TeacherPreferences';
 
+// Student Pages
+import StudentDashboard from './pages/student/StudentDashboard';
+import StudentProfile from './pages/student/StudentProfile';
+
 // Auth Pages
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
+import Login from './pages/Login';
+
 
 // Components
-import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
+        <div className="min-h-screen bg-gray-50">
         <Routes>
-          {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+
+            {/* Auth Routes */}
+            <Route path="/login" element={<Login />} />
+
 
           {/* Admin Routes */}
           <Route
@@ -73,30 +76,44 @@ function App() {
             }
           />
 
-          {/* Teacher Routes */}
-          <Route
+            {/* Teacher Routes */}
+            <Route
             path="/teacher/preferences"
             element={
               <ProtectedRoute requiredRole="teacher">
-                <TeacherPreferences />
+              <TeacherPreferences />
               </ProtectedRoute>
             }
-          />
+            />
 
-          {/* Default Route */}
+            {/* Student Routes */}
+            <Route
+            path="/student/dashboard"
+            element={
+              <ProtectedRoute requiredRole="student">
+              <StudentDashboard />
+              </ProtectedRoute>
+            }
+            />
+            <Route
+            path="/student/profile"
+            element={
+              <ProtectedRoute requiredRole="student">
+              <StudentProfile />
+              </ProtectedRoute>
+            }
+            />
+
+            {/* Default Route */}
           <Route path="/" element={<Navigate to="/login" />} />
         </Routes>
-        <ToastContainer 
+        <Toaster 
           position="bottom-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
+          toastOptions={{
+          duration: 3000
+          }}
         />
+
       </div>
     </Router>
   );
