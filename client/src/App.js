@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
+import Profile from './pages/Profile/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -128,19 +129,36 @@ function App() {
         <Route
           path="/student/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['student']}>
-              <StudentDashboard />
-            </ProtectedRoute>
+          <ProtectedRoute allowedRoles={['student']}>
+            <StudentDashboard />
+          </ProtectedRoute>
           }
         />
         <Route
+          path="/student/profile"
+          element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <Profile />
+          </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+          <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+            <Profile />
+          </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
-              {getUserRole() === 'admin' && <Navigate to="/admin/dashboard" replace />}
-              {getUserRole() === 'teacher' && <Navigate to="/teacher/dashboard" replace />}
-              {getUserRole() === 'student' && <Navigate to="/student/dashboard" replace />}
-            </ProtectedRoute>
+          <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+            {getUserRole() === 'admin' && <Navigate to="/admin/dashboard" replace />}
+            {getUserRole() === 'teacher' && <Navigate to="/teacher/dashboard" replace />}
+            {getUserRole() === 'student' && <Navigate to="/student/dashboard" replace />}
+          </ProtectedRoute>
           }
         />
       </Routes>
