@@ -28,24 +28,54 @@ const StudentDashboard = () => {
   const fetchSchedule = async () => {
     try {
       const token = getToken();
-      const response = await axios.get('http://localhost:3001/api/student/schedule', {
+      // First get the user data to get student group ID
+      const userResponse = await axios.get('http://localhost:3001/api/users/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setSchedule(response.data.schedule);
-      setStudentGroup(response.data.studentGroup);
+
+      const studentData = userResponse.data;
+      const studentGroupId = studentData.metadata?.studentGroup?._id || studentData.metadata?.studentGroup;
+      
+      if (!studentGroupId) {
+        toast.error('No student group assigned');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch timetable using student group ID
+      const timetableResponse = await axios.get(
+        `http://localhost:3001/api/timetable/group/${studentGroupId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      const { studentGroup: groupName, schedule } = timetableResponse.data;
+      setStudentGroup(groupName);
+      setSchedule(schedule);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching schedule:', error);
       toast.error(error.response?.data?.message || 'Failed to fetch schedule');
       setLoading(false);
     }
+
+
   };
 
   const getClassForTimeSlot = (day, timeSlot) => {
-    return schedule.find(slot => 
+    const slot = schedule.find(slot => 
       slot.day === day && 
       slot.timeSlot === timeSlot
     );
+
+    if (!slot) return null;
+
+    return {
+      subject: slot.subject?.name || 'N/A',
+      teacher: slot.teacher?.name || 'N/A',
+      room: slot.classroom?.name || 'N/A'
+    };
   };
 
   const getCurrentClass = () => {
@@ -57,9 +87,10 @@ const StudentDashboard = () => {
     });
     
     if (currentDay && currentTimeSlot) {
-      return getClassForTimeSlot(currentDay, currentTimeSlot);
+      const slot = getClassForTimeSlot(currentDay, currentTimeSlot);
+      return slot ? `${slot.subject} (Room ${slot.room})` : 'No class right now';
     }
-    return null;
+    return 'No class right now';
   };
 
   const getSlotColor = (slot) => {
@@ -187,28 +218,28 @@ const StudentDashboard = () => {
                               <td className="sticky left-0 z-10 bg-gray-50 px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r w-32">
                                 {day}
                               </td>
-                              {timeSlots.map(timeSlot => {
+                                {timeSlots.map(timeSlot => {
                                 const slot = getClassForTimeSlot(day, timeSlot);
                                 return (
                                   <td key={`${day}-${timeSlot}`} className="px-4 py-4 whitespace-nowrap border-r min-w-[160px]">
-                                    {slot ? (
-                                      <div className={`p-3 rounded-lg ${getSlotColor(slot)}`}>
-                                        <div className="font-medium text-gray-900">
-                                          {slot.subject}
-                                        </div>
-                                        <div className="text-sm text-gray-600 mt-1">
-                                          {slot.teacher}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                          Room {slot.room}
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="h-16"></div>
-                                    )}
+                                  {slot ? (
+                                    <div className={`p-3 rounded-lg ${getSlotColor(slot)}`}>
+                                    <div className="font-medium text-gray-900">
+                                      {slot.subject}
+                                    </div>
+                                    <div className="text-sm text-gray-600 mt-1">
+                                      {slot.teacher}
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Room {slot.room}
+                                    </div>
+                                    </div>
+                                  ) : (
+                                    <div className="h-16"></div>
+                                  )}
                                   </td>
                                 );
-                              })}
+                                })}
                             </tr>
                           ))}
                         </tbody>

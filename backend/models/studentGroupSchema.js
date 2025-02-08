@@ -27,7 +27,15 @@ const StudentGroupSchema = new Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'TimetableSlot'
     }],
-    default: []
+    default: [],
+    validate: {
+      validator: function(slots) {
+        // Ensure no duplicate slots
+        const uniqueSlots = new Set(slots.map(s => s.toString()));
+        return uniqueSlots.size === slots.length;
+      },
+      message: 'Duplicate timetable slots are not allowed'
+    }
   }
 }, {
   timestamps: true,

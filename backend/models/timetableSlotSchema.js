@@ -33,7 +33,7 @@ const timetableSlotSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'StudentGroup',
     required: true,
-    index: true // Add index for faster lookups
+    index: true
   },
   classroomId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -49,7 +49,38 @@ const timetableSlotSchema = new mongoose.Schema({
 // Create indexes for faster queries
 timetableSlotSchema.index({ timetableId: 1, dayName: 1, timeSlotName: 1 });
 timetableSlotSchema.index({ dayName: 1, timeSlotName: 1, studentGroupId: 1 }, { unique: true });
-timetableSlotSchema.index({ teacherId: 1, dayName: 1 });
+timetableSlotSchema.index({ teacherId: 1, dayName: 1, timeSlotName: 1 }, { unique: true });
+
+// Pre-save middleware to validate no conflicts
+timetableSlotSchema.pre('save', async function(next) {
+  try {
+    // Check for existing slot at same time for student group
+    const existingSlot = await this.constructor.findOne({
+      _id: { $ne: this._id },
+      studentGroupId: this.studentGroupId,
+      dayName: this.dayName,
+      timeSlotName: this.timeSlotName
+    });
+    if (existingSlot) {
+      throw new Error('Time slot already occupied for this student group');
+    }
+
+    // Check for teacher availability
+    const teacherSlot = await this.constructor.findOne({
+      _id: { $ne: this._id },
+      teacherId: this.teacherId,
+      dayName: this.dayName,
+      timeSlotName: this.timeSlotName
+    });
+    if (teacherSlot) {
+      throw new Error('Teacher already assigned to another class at this time');
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Add virtual for reverse population
 timetableSlotSchema.virtual('studentGroup', {

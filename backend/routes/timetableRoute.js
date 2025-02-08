@@ -144,6 +144,68 @@ router.get('/student/schedule', auth, async (req, res) => {
   }
 });
 
+// Get timetable by student group ID
+router.get('/timetable/group/:groupId', auth, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    // Validate groupId format
+    if (!mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({ message: 'Invalid student group ID format' });
+    }
+
+    // Get student group with populated timetable
+    const studentGroup = await StudentGroup.findById(groupId)
+        .populate({
+        path: 'timetable',
+        populate: [
+          { path: 'teacherId', select: 'name' },
+          { path: 'subjectId', select: 'name' },
+          { path: 'classroomId', select: 'name' }
+        ]
+        })
+      .lean();
+      console.log(studentGroup);
+      
+
+    if (!studentGroup) {
+      return res.status(404).json({ message: 'Student group not found' });
+    }
+
+    if (!studentGroup.timetable || studentGroup.timetable.length === 0) {
+      return res.json({
+        studentGroup: studentGroup.name,
+        schedule: []
+      });
+    }
+
+    // Transform the timetable data
+    const schedule = studentGroup.timetable.map(slot => ({
+      day: slot.dayName,
+      timeSlot: slot.timeSlotName,
+      teacher: slot.teacherId,
+      subject: slot.subjectId,
+      classroom: slot.classroomId
+    })).sort((a, b) => {
+      const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+      if (dayDiff !== 0) return dayDiff;
+      return a.timeSlot.localeCompare(b.timeSlot);
+    });
+
+    res.json({
+      studentGroup: studentGroup.name,
+      schedule
+    });
+  } catch (error) {
+    console.error('Error fetching group timetable:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch timetable',
+      error: error.message 
+    });
+  }
+});
+
 // Generate new timetable (admin only)
 router.post('/generate-timetable', isAdmin, async (req, res) => {
   try {

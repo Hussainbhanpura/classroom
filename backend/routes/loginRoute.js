@@ -484,4 +484,32 @@ router.put('/users/student/:id', isAdmin, async (req, res) => {
   }
 });
 
+// Get current user data
+router.get('/users/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate({
+        path: 'metadata.studentGroup',
+        populate: {
+          path: 'timetable',
+          populate: [
+            { path: 'teacherId', select: 'name' },
+            { path: 'subjectId', select: 'name' },
+            { path: 'classroomId', select: 'name' }
+          ]
+        }
+      })
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    res.status(500).json({ message: 'Failed to fetch user data' });
+  }
+});
+
 export default router;

@@ -95,9 +95,14 @@ class TimetableGenerator {
       
       this.teachers = teachers;
       
-      // Clear existing timetable slots for all student groups
+      // Clear existing timetable slots and reset student group timetables
+      await TimetableSlot.deleteMany({});
       await Promise.all(studentGroups.map(group => 
-        StudentGroup.findByIdAndUpdate(group._id, { $set: { timetable: [] } })
+        StudentGroup.findByIdAndUpdate(
+          group._id, 
+          { $set: { timetable: [] } },
+          { new: true }
+        )
       ));
       
       // Pre-cache classrooms
@@ -106,8 +111,6 @@ class TimetableGenerator {
       const { teacherLimits, classroomAvailability } = await this.initializeTracking();
       this.teacherLimits = teacherLimits;
       this.classroomAvailability = classroomAvailability;
-
-      const allSlots = [];
 
       // Generate timetable for each student group
       for (const studentGroup of studentGroups) {
@@ -128,10 +131,7 @@ class TimetableGenerator {
             const bestTeacher = await this.findBestTeacher(day, timeSlot);
             if (!bestTeacher) continue;
             
-            const assignment = await this.assignSlot(bestTeacher, day, timeSlot, studentGroup);
-            if (assignment) {
-              allSlots.push(assignment);
-            }
+            await this.assignSlot(bestTeacher, day, timeSlot, studentGroup);
           }
         }
       }
@@ -140,7 +140,7 @@ class TimetableGenerator {
       return this.getFormattedTimetable();
     } catch (error) {
       console.error('❌ Generation failed:', error);
-      return [];
+      throw error;
     }
   }
 

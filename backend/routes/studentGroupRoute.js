@@ -140,6 +140,14 @@ router.get('/student-groups/:id', async (req, res) => {
   try {
     const group = await StudentGroup.findById(req.params.id)
       .populate('subjects', 'name lecturesPerWeek')
+      .populate({
+        path: 'timetable',
+        populate: [
+          { path: 'teacherId', select: 'name' },
+          { path: 'subjectId', select: 'name' },
+          { path: 'classroomId', select: 'name' }
+        ]
+      })
       .lean();
 
     if (!group) {

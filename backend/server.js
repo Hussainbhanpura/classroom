@@ -32,19 +32,43 @@ app.use('/api', classroomRoutes);
 app.use('/api', teacherPreferenceRoutes);
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI
-mongoose.connect(MONGODB_URI,{
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000
-})
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => console.log('MongoDB connection error:', err));
+const MONGODB_URI = process.env.MONGODB_URI;
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000, // Increase timeout to 10 seconds
+      socketTimeoutMS: 45000, // Increase socket timeout
+      family: 4 // Use IPv4, skip trying IPv6
+    });
+    
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    
+    // Initialize Bloom filter after successful connection
+    mongoose.connection.once('open', () => {
+      console.log('MongoDB connection opened');
+      initializeBloomFilter();
+    });
 
-mongoose.connection.once('open', () => {
-  console.log('Connected to MongoDB');
-  initializeBloomFilter();
-});
+    // Handle connection errors
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected. Attempting to reconnect...');
+    });
+
+  } catch (error) {
+    console.error('Error connecting to MongoDB:', error);
+    // Exit process with failure if initial connection fails
+    process.exit(1);
+  }
+};
+
+// Connect to MongoDB
+connectDB();
 
 // Port
 const PORT = process.env.PORT || 3001;
