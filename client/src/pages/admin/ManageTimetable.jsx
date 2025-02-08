@@ -12,11 +12,14 @@ const ManageTimetable = () => {
   const [timetable, setTimetable] = useState(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const timeSlots = [
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [days] = useState(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
+  const [timeSlots] = useState([
     '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
     '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'
-  ];
+  ]);
 
   useEffect(() => {
     fetchTimetable();
@@ -51,7 +54,6 @@ const ManageTimetable = () => {
       const response = await axios.get('/api/timetable');
       if (response.data && Array.isArray(response.data.timetable)) {
         setTimetable(response.data.timetable);
-        console.log(response.data);
       } else {
         setTimetable(null);
       }
@@ -64,31 +66,80 @@ const ManageTimetable = () => {
   };
 
   const getSlotContent = (day, timeSlot, groupId) => {
-    // Check if it's break time
     if (timeSlot === '12:00 PM') {
-      return {
-        isBreak: true,
-        message: 'Break Time'
-      };
+      return { isBreak: true, message: 'Break Time' };
     }
 
     if (!timetable || !Array.isArray(timetable)) {
       return null;
     }
 
-    // Find the group's schedule
     const group = timetable.find(g => g.studentGroup === groupId);
     if (!group || !group.schedule) return null;
 
-    // Find the specific slot in the group's schedule
+    // Get unique subjects from schedule
+    const uniqueSubjects = Array.from(new Set(
+      group.schedule
+        .filter(s => s.subject)
+        .map(s => JSON.stringify(s.subject))
+    )).map(s => JSON.parse(s));
+
+    console.log('Unique subjects:', uniqueSubjects);
+
     const slot = group.schedule.find(s => s.day === day && s.timeSlot === timeSlot);
     if (!slot) return null;
+
+    {selectedSlot?.groupSubjects?.map((subject, index) => {
+      console.log(subject);  // Add this log to see what subject looks like
+      return (
+        <option key={index} value={subject._id}>
+          {subject.name}
+        </option>
+      );
+    })}
 
     return {
       subject: slot.subject,
       teacher: slot.teacher,
-      classroom: slot.classroom
+      classroom: slot.classroom,
+        subject: slot.subject,
+        teacher: slot.teacher,
+        classroom: slot.classroom,
+        groupSubjects: uniqueSubjects // These are the unique subjects available for this group
     };
+  };
+
+  const openEditModal = (day, time, group) => {
+    console.log(group.subjects);
+    const currentSlot = getSlotContent(day, time, group.studentGroup);
+    setSelectedSlot({ day, time, group });
+    setSelectedSubject(currentSlot?.subject || null);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSubjectChange = (e) => {
+    setSelectedSubject(e.target.value);
+  };
+
+  const saveChanges = async () => {
+    try {
+      const updatedTimetable = [...timetable];
+      const groupIndex = updatedTimetable.findIndex(g => g.studentGroup === selectedSlot.group.studentGroup);
+      const group = updatedTimetable[groupIndex];
+
+      const slotIndex = group.schedule.findIndex(
+        s => s.day === selectedSlot.day && s.timeSlot === selectedSlot.time
+      );
+      group.schedule[slotIndex].subject = selectedSubject;
+
+      setTimetable(updatedTimetable);
+      toast.success('Timetable updated successfully');
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      toast.error('Failed to save changes');
+    } finally {
+      setIsEditModalOpen(false);
+    }
   };
 
   const content = (
@@ -120,7 +171,7 @@ const ManageTimetable = () => {
           )}
         </button>
       </div>
-      
+
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -151,19 +202,19 @@ const ManageTimetable = () => {
                         {days.map(day => {
                           const content = getSlotContent(day, time, group.studentGroup);
                           return (
-                            <td key={`${day}-${time}`} className="px-6 py-4">
+                            <td key={`${day}-${time}`} className="px-6 py-4 cursor-pointer" onClick={() => openEditModal(day, time, group)}>
                               {content?.isBreak ? (
-                              <div className="bg-yellow-100 p-3 rounded-lg">
-                                <div className="font-medium text-yellow-800 text-center">Break Time</div>
-                              </div>
+                                <div className="bg-yellow-100 p-3 rounded-lg">
+                                  <div className="font-medium text-yellow-800 text-center">Break Time</div>
+                                </div>
                               ) : content ? (
-                              <div className="space-y-1">
-                                <div className="font-medium text-blue-600">{content.subject?.name || 'No Subject'}</div>
-                                <div className="text-sm text-gray-600">{content.teacher?.name || 'No Teacher'}</div>
-                                <div className="text-xs text-gray-500">Room {content.classroom?.name || 'No Classroom'}</div>
-                              </div>
+                                <div className="space-y-1">
+                                  <div className="font-medium text-blue-600">{content.subject?.name || 'No Subject'}</div>
+                                  <div className="text-sm text-gray-600">{content.teacher?.name || 'No Teacher'}</div>
+                                  <div className="text-xs text-gray-500">Room {content.classroom?.name || 'No Classroom'}</div>
+                                </div>
                               ) : (
-                              <div className="text-gray-400 text-sm">No class</div>
+                                <div className="text-gray-400 text-sm">No class</div>
                               )}
                             </td>
                           );
@@ -186,17 +237,42 @@ const ManageTimetable = () => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-      </Layout>
-    );
-  }
+  return (
+    <Layout>
+      {content}
 
-  return <Layout>{content}</Layout>;
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg w-96">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Edit Slot</h2>
+            <div>
+              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">Choose Subject</label>
+              <select
+                id="subject"
+                value={selectedSubject || ''}
+                onChange={handleSubjectChange}
+                className="w-full border border-gray-300 p-2 rounded-md"
+              >
+                <option value="">Select Subject</option>
+                {selectedSlot?.groupSubjects?.map((subject, index) => (
+                  <option key={index} value={subject._id}>{subject.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={saveChanges}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
 };
 
 export default ManageTimetable;

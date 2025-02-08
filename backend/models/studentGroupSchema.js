@@ -7,6 +7,12 @@ const StudentGroupSchema = new Schema({
     required: true,
     unique: true
   },
+  subjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subject',
+    autopopulate: true,
+    select: 'name' // Explicitly select the name field
+  }],
   academicYear: {
     type: String,
     required: true
@@ -15,13 +21,7 @@ const StudentGroupSchema = new Schema({
     type: Boolean,
     default: true
   },
-  subjects: {
-    type: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Subject'
-    }],
-    default: []
-  },
+
   timetable: {
     type: [{
       type: mongoose.Schema.Types.ObjectId,
