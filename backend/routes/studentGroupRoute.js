@@ -177,4 +177,113 @@ router.delete('/student-groups/:id', isAdmin, async (req, res) => {
   }
 });
 
+// Create a new batch for a given student group
+router.post('/student-groups/:groupId/batches', auth,isAdmin, async (req, res) => {
+  try {
+    const { groupId } = req.params;    
+    if (!groupId) {
+      return res.status(400).json({ message: 'Group ID and batch name are required' });
+    }
+    
+    const group = await StudentGroup.findById(groupId);
+    console.log(group);
+    if (!group) {
+      return res.status(404).json({ message: 'Student group not found' });
+    }
+    
+    if (group.batches.some(batch => batch.name === name)) {
+      return res.status(400).json({ message: 'A batch with this name already exists in this group' });
+    }
+    
+    group.batches.push({ name });
+    await group.save();
+    res.status(201).json(group);
+  } catch (error) {
+    console.error('Error creating batch:', error);
+    res.status(500).json({ message: 'Failed to create batch' });
+  }
+});
+
+// Get all batches for a given student group
+router.get('/:groupId/batches', async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const group = await StudentGroup.findById(groupId);
+    
+    if (!group) {
+      return res.status(404).json({ message: 'Student group not found' });
+    }
+    
+    res.json(group.batches);
+  } catch (error) {
+    console.error('Error fetching batches:', error);
+    res.status(500).json({ message: 'Failed to fetch batches' });
+  }
+});
+
+// Update an existing batch
+router.put('/:groupId/batches/:batchId', isAdmin, async (req, res) => {
+  try {
+    const { groupId, batchId } = req.params;
+    const { name } = req.body;
+    
+    if (!groupId || !batchId || !name) {
+      return res.status(400).json({ message: 'Group ID, batch ID, and new name are required' });
+    }
+    
+    const group = await StudentGroup.findById(groupId);
+    
+    if (!group) {
+      return res.status(404).json({ message: 'Student group not found' });
+    }
+    
+    const batchIndex = group.batches.findIndex(batch => batch._id.toString() === batchId);
+    
+    if (batchIndex === -1) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+    
+    if (group.batches.some(batch => batch._id.toString() !== batchId && batch.name === name)) {
+      return res.status(400).json({ message: 'A batch with this name already exists in this group' });
+    }
+    
+    group.batches[batchIndex].name = name;
+    await group.save();
+    res.json(group);
+  } catch (error) {
+    console.error('Error updating batch:', error);
+    res.status(500).json({ message: 'Failed to update batch' });
+  }
+});
+
+// Delete an existing batch
+router.delete('/:groupId/batches/:batchId', isAdmin, async (req, res) => {
+  try {
+    const { groupId, batchId } = req.params;
+    
+    if (!groupId || !batchId) {
+      return res.status(400).json({ message: 'Group ID and batch ID are required' });
+    }
+    
+    const group = await StudentGroup.findById(groupId);
+    
+    if (!group) {
+      return res.status(404).json({ message: 'Student group not found' });
+    }
+    
+    const batchIndex = group.batches.findIndex(batch => batch._id.toString() === batchId);
+    
+    if (batchIndex === -1) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+    
+    group.batches.splice(batchIndex, 1);
+    await group.save();
+    res.json({ message: 'Batch deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting batch:', error);
+    res.status(500).json({ message: 'Failed to delete batch' });
+  }
+});
+
 export default router;

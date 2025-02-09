@@ -7,6 +7,12 @@ const StudentGroupSchema = new Schema({
     required: true,
     unique: true
   },
+  subjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subject',
+    autopopulate: true,
+    select: 'name'
+  }],
   academicYear: {
     type: String,
     required: true
@@ -15,26 +21,33 @@ const StudentGroupSchema = new Schema({
     type: Boolean,
     default: true
   },
-  subjects: {
-    type: [{
+  batches: [{
+    name: {
+      type: String,
+      required: true
+    },
+    students: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Subject'
-    }],
-    default: []
-  },
+      ref: 'Student'
+    }]
+  }],
   timetable: {
     type: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'TimetableSlot'
+      ref: 'TimetableSlot',
+      batch: {
+        type: String,
+        required: false // Optional, if not specified, applies to all batches
+      }
     }],
     default: [],
     validate: {
       validator: function(slots) {
-        // Ensure no duplicate slots
-        const uniqueSlots = new Set(slots.map(s => s.toString()));
+        // Ensure no duplicate slots for the same batch
+        const uniqueSlots = new Set(slots.map(s => `${s.toString()}-${s.batch || 'all'}`));
         return uniqueSlots.size === slots.length;
       },
-      message: 'Duplicate timetable slots are not allowed'
+      message: 'Duplicate timetable slots for the same batch are not allowed'
     }
   }
 }, {

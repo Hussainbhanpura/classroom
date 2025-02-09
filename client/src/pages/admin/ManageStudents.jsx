@@ -22,7 +22,13 @@ const ManageStudents = () => {
       studentGroup: "",
       year: "",
       section: "",
+      batch: "",
     },
+  });
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batchFormData, setBatchFormData] = useState({
+    studentGroup: "",
+    name: "",
   });
 
   useEffect(() => {
@@ -34,13 +40,11 @@ const ManageStudents = () => {
     try {
       setLoading(true);
       const response = await axiosInstance.get("/api/student-groups");
-      console.log(response.data)
+      console.log(response.data);
       setStudentGroups(response.data);
     } catch (error) {
       console.error("Error fetching student groups:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to fetch student groups"
-      );
+      toast.error(error.response?.data?.message || "Failed to fetch student groups");
     } finally {
       setLoading(false);
     }
@@ -96,7 +100,7 @@ const ManageStudents = () => {
       await axiosInstance.patch(`/api/users/students/${studentId}/deactivate`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       // Update students list immediately after successful deactivation
       setStudents(prevStudents => prevStudents.filter(student => student.id !== studentId));
       toast.success('Student deactivated successfully');
@@ -105,7 +109,6 @@ const ManageStudents = () => {
       toast.error(error.response?.data?.message || 'Failed to deactivate student');
     }
   };
-
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();
@@ -119,6 +122,24 @@ const ManageStudents = () => {
     } catch (error) {
       console.error("Error creating student group:", error);
       toast.error("Failed to create student group");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateBatch = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const groupId = batchFormData.studentGroup;
+      const response = await axiosInstance.post(`/api/student-groups/${groupId}/batches`, batchFormData);
+      toast.success('Batch created successfully!');
+      fetchStudentGroups();
+      setShowBatchModal(false);
+      setBatchFormData({ studentGroup: '', name: '' });
+    } catch (error) {
+      console.error('Error creating batch:', error);
+      toast.error(error.response?.data?.message || 'Failed to create batch');
     } finally {
       setLoading(false);
     }
@@ -149,12 +170,71 @@ const ManageStudents = () => {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">Manage Students</h1>
           <button
+            onClick={() => setShowBatchModal(true)}
+            className="bg-blue-500 text-white px-4 py-2 rounded-md mb-2"
+          >
+            Add Batch
+          </button>
+          <button
             onClick={() => setShowGroupModal(true)}
             className="bg-blue-500 text-white px-4 py-2 rounded-md"
           >
             Add Student Group
           </button>
         </div>
+
+        {showBatchModal && (
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex justify-center items-center">
+            <div className="bg-white p-6 rounded-md shadow-md">
+              <h2 className="text-xl font-semibold mb-4">Add Batch</h2>
+              <form onSubmit={handleCreateBatch} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Student Group</label>
+                  <select
+                    name="studentGroup"
+                    value={batchFormData.studentGroup}
+                    onChange={(e) => setBatchFormData({ ...batchFormData, studentGroup: e.target.value })}
+                    className="form-input mt-1 block w-full"
+                    required
+                  >
+                    <option value="">Select a group</option>
+                    {studentGroups.map((group) => (
+                      <option key={group._id} value={group._id}>
+                        {group.name} - {group.academicYear}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Batch Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={batchFormData.name}
+                    onChange={(e) => setBatchFormData({ ...batchFormData, name: e.target.value })}
+                    className="form-input mt-1 block w-full"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowBatchModal(false)}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md mr-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-500 text-white px-4 py-2 rounded-md"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {showGroupModal && (
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex justify-center items-center">
@@ -314,10 +394,10 @@ const ManageStudents = () => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Current Students</h2>
               <button
-              onClick={() => setShowDeactivated(!showDeactivated)}
-              className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+                onClick={() => setShowDeactivated(!showDeactivated)}
+                className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
               >
-              {showDeactivated ? "Show Active Students" : "Show All Students"}
+                {showDeactivated ? "Show Active Students" : "Show All Students"}
               </button>
             </div>
             <div className="overflow-x-auto">
@@ -333,8 +413,11 @@ const ManageStudents = () => {
                   </tr>
                 </thead>
                 <tbody>
-                    {students.map((student) => (
-                    <tr key={student._id} className={`border-b ${student.isDeactivated ? 'bg-gray-100' : ''}`}>
+                  {students.map((student) => (
+                    <tr
+                      key={student._id}
+                      className={`border-b ${student.isDeactivated ? 'bg-gray-100' : ''}`}
+                    >
                       <td className="px-4 py-2">{student.name}</td>
                       <td className="px-4 py-2">{student.email}</td>
                       <td className="px-4 py-2">
@@ -342,22 +425,19 @@ const ManageStudents = () => {
                           ? `${student.metadata.studentGroup.name} (${student.metadata.studentGroup.academicYear})`
                           : "-"}
                       </td>
+                      <td className="px-4 py-2">{student.metadata?.year || "-"}</td>
+                      <td className="px-4 py-2">{student.metadata?.batch || "-"}</td>
+                      <td className="px-4 py-2">{student.metadata?.section || "-"}</td>
                       <td className="px-4 py-2">
-                        {student.metadata?.year || "-"}
-                      </td>
-                      <td className="px-4 py-2">
-                        {student.metadata?.section || "-"}
-                      </td>
-                        <td className="px-4 py-2">
                         {!student.isDeactivated && (
                           <button
-                          onClick={() => handleDelete(student.id)}
-                          className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
+                            onClick={() => handleDelete(student.id)}
+                            className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
                           >
-                          Deactivate
+                            Deactivate
                           </button>
                         )}
-                        </td>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
