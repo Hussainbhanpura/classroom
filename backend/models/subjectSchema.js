@@ -21,7 +21,10 @@ const SubjectSchema = new Schema({
   },
   credits: {
     type: Number,
-    default: 0
+    required: true,
+    default: 0,
+    min: 0,
+    max: 6
   },
   requiredEquipment: {
     type: [String],
