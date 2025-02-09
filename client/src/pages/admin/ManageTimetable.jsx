@@ -194,12 +194,13 @@ const ManageTimetable = () => {
         return;
       }
 
-      // Make API call to update the timetable
+      // Make API call to update the timetable and classroom availability
       await axios.put(`/api/timetable/slot`, {
         groupId: selectedSlot.group.studentGroup,
         day: selectedSlot.day,
         timeSlot: selectedSlot.time,
-        subjectId: newSubjectId
+        subjectId: newSubjectId,
+        previousClassroomId: selectedSlot?.classroom?._id // Send previous classroom ID to free up its slot
       });
 
       // Update local state
@@ -207,9 +208,9 @@ const ManageTimetable = () => {
       const groupIndex = updatedTimetable.findIndex(g => g.studentGroup === selectedSlot.group.studentGroup);
       const group = updatedTimetable[groupIndex];
 
-        const slotIndex = group.schedule.findIndex(
+      const slotIndex = group.schedule.findIndex(
         s => s.day === selectedSlot.day && s.timeSlot === selectedSlot.time
-        );
+      );
       
       group.schedule[slotIndex].subject = selectedSubjectObj;
 
@@ -218,7 +219,6 @@ const ManageTimetable = () => {
     } catch (error) {
       console.error('Error updating subject:', error);
       toast.error(error.response?.data?.message || 'Failed to update subject');
-      // Reset the selected subject on error
       setSelectedSubject(selectedSlot?.subject?._id || null);
     }
   };
