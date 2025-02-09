@@ -13,9 +13,11 @@ const ManageSubjects = () => {
     description: "",
     requiredEquipment: [],
     studentGroup: "",
+    credits: 0,
   });
   const [equipmentInput, setEquipmentInput] = useState("");
   const [selectedStudentGroup, setSelectedStudentGroup] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const commonEquipment = [
     "Whiteboard",
@@ -81,53 +83,63 @@ const ManageSubjects = () => {
     try {
       const token = getToken();
       const equipment = [...formData.requiredEquipment];
-
       if (equipmentInput.trim()) {
-        equipment.push(...equipmentInput.split(",").map((item) => item.trim()));
-      }
-
-      // Ensure we have a student group selected
-      if (!selectedStudentGroup) {
-        toast.error("Please select a student group");
-        return;
+        equipment.push(equipmentInput.trim());
       }
 
       const dataToSend = {
         name: formData.name,
         description: formData.description,
         requiredEquipment: Array.from(new Set(equipment)),
-        studentGroup: selectedStudentGroup
+        studentGroup: selectedStudentGroup,
+        credits: formData.credits,
       };
 
       console.log('Sending data:', dataToSend);
 
-      const response = await axios.post(
-        "http://localhost:3001/api/subjects",
-        dataToSend,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      if (editingId) {
+        // Update existing subject
+        await axios.put(
+          `http://localhost:3001/api/subjects/${editingId}`,
+          dataToSend,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        toast.success("Subject updated successfully!");
+      } else {
+        // Create new subject
+        await axios.post(
+          "http://localhost:3001/api/subjects",
+          dataToSend,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        toast.success("Subject added successfully!");
+      }
 
-      console.log('Response:', response.data);
-      toast.success("Subject added successfully");
-      fetchSubjects();
-      
       // Reset form
       setFormData({
         name: "",
         description: "",
         requiredEquipment: [],
-        studentGroup: ""
+        studentGroup: "",
+        credits: 0,
       });
       setEquipmentInput("");
       setSelectedStudentGroup(null);
+      setEditingId(null);
+      fetchSubjects();
     } catch (error) {
-      console.error("Error adding subject:", error?.response?.data || error);
-      toast.error(error?.response?.data?.message || "Failed to add subject");
+      console.error("Error:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to save subject"
+      );
     }
   };
 
@@ -145,6 +157,37 @@ const ManageSubjects = () => {
         toast.error("Failed to delete subject");
       }
     }
+  };
+
+  const handleEdit = async (subject) => {
+    try {
+      setEditingId(subject._id);
+      setFormData({
+        name: subject.name,
+        description: subject.description,
+        requiredEquipment: subject.requiredEquipment || [],
+        studentGroup: subject.studentGroup?._id || "",
+        credits: subject.credits || 0,
+      });
+      setSelectedStudentGroup(subject.studentGroup?._id || null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      console.error("Error in edit:", error);
+      toast.error("Failed to edit subject");
+    }
+  };
+
+  const handleCancel = () => {
+    setFormData({
+      name: "",
+      description: "",
+      requiredEquipment: [],
+      studentGroup: "",
+      credits: 0,
+    });
+    setEquipmentInput("");
+    setSelectedStudentGroup(null);
+    setEditingId(null);
   };
 
   const toggleEquipment = (equipment) => {
@@ -166,6 +209,13 @@ const ManageSubjects = () => {
     }));
   };
 
+  const handleCreditsChange = (e) => {
+    setFormData(prev => ({
+      ...prev,
+      credits: parseInt(e.target.value)
+    }));
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -173,7 +223,7 @@ const ManageSubjects = () => {
 
         {/* Add Subject Form */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Add New Subject</h2>
+          <h2 className="text-xl font-semibold mb-4">{editingId ? 'Edit Subject' : 'Add New Subject'}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
@@ -268,66 +318,100 @@ const ManageSubjects = () => {
 
             </div>
 
-            <button
-              type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-            >
-              Add Subject
-            </button>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Credits
+              </label>
+              <input
+                type="number"
+                value={formData.credits}
+                onChange={handleCreditsChange}
+                className="form-input"
+              />
+            </div>
+
+            <div className="flex justify-between">
+              <button
+                type="submit"
+                className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+              >
+                {editingId ? 'Update Subject' : 'Add Subject'}
+              </button>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
         </div>
 
-        {/* Subjects List */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Subjects List</h2>
-          {loading ? (
-            <p>Loading...</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student Group
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {subjects.map((subject) => (
-                    <tr key={subject._id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {subject.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {subject.description}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {subject.studentGroup?.name ||
-                          subject.studentGroup?.academicYear}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <button
-                          onClick={() => handleDelete(subject._id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        {/* Subjects Table */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Subject Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Required Equipment
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Student Group
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Credits
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {subjects.map((subject) => (
+                <tr key={subject._id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {subject.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {subject.description}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {subject.requiredEquipment?.join(", ")}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {subject.studentGroup?.name ||
+                      subject.studentGroup?.academicYear}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {subject.credits}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 space-x-4">
+                    <button
+                      onClick={() => handleEdit(subject)}
+                      className="text-blue-600 hover:text-blue-900 px-2 py-1 rounded"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(subject._id)}
+                      className="text-red-600 hover:text-red-900 px-2 py-1 rounded"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </Layout>
