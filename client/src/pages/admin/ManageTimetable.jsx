@@ -16,17 +16,15 @@ const ManageTimetable = () => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [nationalHolidays, setNationalHolidays] = useState([]);
+  const [customHolidays, setCustomHolidays] = useState([]);
   const [days] = useState(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']);
   const [timeSlots] = useState([
     '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
     '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'
   ]);
-  const [holidays, setHolidays] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [isHoliday, setIsHoliday] = useState(false);
 
   useEffect(() => {
     const fetchHolidays = async () => {
@@ -34,13 +32,13 @@ const ManageTimetable = () => {
         const response = await axios.get(
           'https://calendarific.com/api/v2/holidays?api_key=ftce16zRNxYY096S4i7lyGk0WTlxDd68&country=IN&year=2025'
         );
-        const nationalHolidays = response.data.response.holidays
+        const holidays = response.data.response.holidays
           .filter(holiday => holiday.type.includes('National holiday'))
           .map(holiday => {
             const [year, month, day] = holiday.date.iso.split('-');
             return new Date(year, month - 1, day);
           });
-        setHolidays(nationalHolidays);
+        setNationalHolidays(holidays);
       } catch (error) {
         console.error('Error fetching holidays:', error);
         toast.error('Failed to fetch holidays');
@@ -56,55 +54,68 @@ const ManageTimetable = () => {
       backgroundColor: '#ffcdd2',
       color: '#c62828',
       fontWeight: 'bold'
+    },
+    customHoliday: {
+      backgroundColor: '#b2ebf2',
+      color: '#00838f',
+      fontWeight: 'bold'
+    },
+    weekend: {
+      color: '#ef4444',
+      fontWeight: 'bold'
     }
   };
 
   const modifiers = {
-    holiday: holidays
+    holiday: nationalHolidays,
+    customHoliday: customHolidays,
+    weekend: (date) => {
+      const day = date.getDay();
+      return day === 0 || day === 6; // 0 is Sunday, 6 is Saturday
+    }
   };
 
-  const fetchHolidays = async () => {
-    try {
-      const response = await fetch('https://calendarific.com/api/v2/holidays?api_key=ftce16zRNxYY096S4i7lyGk0WTlxDd68&country=IN&year=2025');
-      const data = await response.json();
-      if (data?.response?.holidays) {
-        const nationalHolidays = data.response.holidays.filter(holiday => 
-          holiday.type.includes('National holiday')
+  const handleDayClick = (day) => {
+    if (!day) return;
+    
+    setCustomHolidays(prev => {
+      const dateStr = day.toISOString().split('T')[0];
+      const isAlreadyHoliday = prev.some(holiday => 
+        holiday.toISOString().split('T')[0] === dateStr
+      );
+      
+      if (isAlreadyHoliday) {
+        // Remove the holiday
+        return prev.filter(holiday => 
+          holiday.toISOString().split('T')[0] !== dateStr
         );
-        setHolidays(nationalHolidays);
-      }
-    } catch (error) {
-      console.error('Error fetching holidays:', error);
-      toast.error('Failed to fetch holidays');
-    }
-  };
-
-  const toggleHoliday = async () => {
-    if (!selectedDate) return;
-    try {
-      const dateString = selectedDate.toISOString().slice(0, 10);
-      const newHoliday = { date: dateString, type: isHoliday ? 'College Holiday' : 'National holiday', name: 'Holiday' };
-      if (isHoliday) {
-        await axios.delete(`/api/holidays/${dateString}`);
       } else {
-        await axios.post('/api/holidays', newHoliday);
+        // Add the holiday
+        return [...prev, day];
       }
-      fetchHolidays();
-      toast.success('Holiday status updated successfully!');
+    });
+    
+    toast.success(`${format(day, 'PP')} ${customHolidays.some(holiday => 
+      holiday.toISOString().split('T')[0] === day.toISOString().split('T')[0]
+    ) ? 'removed from' : 'marked as'} holiday`);
+  };
+
+  const fetchTimetable = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/timetable');
+      if (response.data && Array.isArray(response.data.timetable)) {
+        setTimetable(response.data.timetable);
+      } else {
+        setTimetable(null);
+      }
     } catch (error) {
-      console.error('Error toggling holiday:', error);
-      toast.error('Failed to update holiday status');
+      console.error('Error fetching timetable:', error);
+      toast.error('Failed to fetch timetable');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleDayClick = async (day) => {
-    const dateStr = day.toISOString().slice(0, 10);
-    setSelectedDate(day);
-    const existingHoliday = holidays.find(h => h.date?.iso === dateStr);
-    setIsHoliday(!!existingHoliday);
-  };
-
-
 
   const generateTimetable = async () => {
     try {
@@ -128,34 +139,6 @@ const ManageTimetable = () => {
       setGenerating(false);
     }
   };
-
-  const fetchTimetable = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/timetable');
-      if (response.data && Array.isArray(response.data.timetable)) {
-        setTimetable(response.data.timetable);
-      } else {
-        setTimetable(null);
-      }
-    } catch (error) {
-      console.error('Error fetching timetable:', error);
-      toast.error('Failed to fetch timetable');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const holidayMap = useMemo(() => {
-    const map = {};
-    holidays.forEach(holiday => {
-      if (holiday.date?.iso) {
-        map[holiday.date.iso] = holiday.name;
-      }
-    });
-    return map;
-  }, [holidays]);
-
 
   const getSlotContent = (day, timeSlot, groupId) => {
     if (timeSlot === '12:00 PM') {
@@ -243,7 +226,6 @@ const ManageTimetable = () => {
     setIsEditModalOpen(false);
   };
 
-
   const content = (
     <div className="p-6">
       <>
@@ -252,10 +234,6 @@ const ManageTimetable = () => {
             <h1 className="text-2xl font-bold text-gray-900">Timetable</h1>
             <p className="mt-1 text-sm text-gray-600">View and manage the class schedule</p>
           </div>
-          <button onClick={() => {
-            setIsCalendarModalOpen(!isCalendarModalOpen);
-            console.log('Open Calendar button clicked');
-          }} className="px-4 py-2 rounded-md bg-green-600 hover:bg-green-700 text-white">Open Calendar</button>
           <button
             onClick={generateTimetable}
             disabled={generating}
@@ -343,6 +321,7 @@ const ManageTimetable = () => {
     </div>
   );
 
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
 
   return (
     <Layout>
@@ -377,16 +356,25 @@ const ManageTimetable = () => {
               <div className="calendar-container">
                 <DayPicker
                   mode="single"
-                  selected={selectedDate}
+                  selected={null}
                   onSelect={handleDayClick}
                   modifiers={modifiers}
                   modifiersStyles={modifiersStyles}
                   footer={
-                    <div className="mt-4">
+                    <div className="mt-4 space-y-2">
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded-full bg-red-200"></div>
-                        <span className="text-sm text-gray-600">Holiday</span>
+                        <span className="text-sm text-gray-600">National Holiday</span>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded-full bg-blue-200"></div>
+                        <span className="text-sm text-gray-600">Custom Holiday</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded-full bg-red-500"></div>
+                        <span className="text-sm text-gray-600">Weekend</span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2">Click on any date to toggle it as a holiday</p>
                     </div>
                   }
                 />
@@ -439,7 +427,6 @@ const ManageTimetable = () => {
       </div>
     </Layout>
   );
-
 };
 
 export default ManageTimetable;
