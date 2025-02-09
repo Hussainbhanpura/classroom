@@ -8,6 +8,13 @@ import Classroom from '../models/classroomSchema.js';
 import { TimetableSlot } from '../models/timetableSlotSchema.js';
 import StudentGroup from '../models/studentGroupSchema.js';
 
+// Helper function to check classroom availability
+const isClassroomAvailable = async (classroomId, day, timeSlot) => {
+  const classroom = await Classroom.findById(classroomId);
+  return !classroom.isOccupied.some(
+    slot => slot.day === day && slot.timeSlot === timeSlot
+  );
+};
 
 const router = express.Router();
 
@@ -146,6 +153,25 @@ router.get('/student/schedule', auth, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch schedule' });
   }
 });
+// Get classroom availability
+router.get('/classroom/availability/:classroomId', isAdmin, async (req, res) => {
+  try {
+    const { classroomId } = req.params;
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) {
+      return res.status(404).json({ message: 'Classroom not found' });
+    }
+    res.json({
+      classroomId: classroom._id,
+      name: classroom.name,
+      occupiedSlots: classroom.isOccupied
+    });
+  } catch (error) {
+    console.error('Error fetching classroom availability:', error);
+    res.status(500).json({ message: 'Failed to fetch classroom availability' });
+  }
+});
+
 // Get timetable by student group ID
 router.get('/timetable/group/:groupId', auth, async (req, res) => {
   try {
@@ -218,6 +244,9 @@ router.post('/generate-timetable', isAdmin, async (req, res) => {
     
     await Timetable.deleteMany({});
     await TimetableSlot.deleteMany({});
+    
+    // Clear all classroom occupancy before generating new timetable
+    await Classroom.updateMany({}, { $set: { isOccupied: [] } });
 
     const teachers = await User.find({ role: 'teacher' }).populate('metadata.subjects');
     const classrooms = await Classroom.find();
@@ -270,6 +299,26 @@ router.post('/generate-timetable', isAdmin, async (req, res) => {
     // Update timetable with slot references
     newTimetable.slots = timetableSlots.map(slot => slot._id);
     await newTimetable.save();
+
+    // Mark classrooms as occupied and update availability for each time slot
+    for (const slot of timetableSlots) {
+      await Classroom.findByIdAndUpdate(
+      slot.classroomId,
+      {
+        $push: {
+        isOccupied: {
+          day: slot.dayName,
+          timeSlot: slot.timeSlotName
+        }
+        },
+        $set: {
+        [`availability.${slot.dayName}.${slot.timeSlotName}`]: false
+        }
+      },
+      { new: true, upsert: true }
+      );
+    }
+
 
     // Get all created slots with populated data
     const createdSlots = await TimetableSlot.find()

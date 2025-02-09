@@ -17,12 +17,15 @@ const timeSlots = [
 // Define the days of the week
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// Create a default availability matrix (all slots available)
-const defaultAvailability = {};
+// Create a default availability array
+const defaultAvailability = [];
 daysOfWeek.forEach(day => {
-  defaultAvailability[day] = {};
   timeSlots.forEach(slot => {
-    defaultAvailability[day][slot] = true;
+    defaultAvailability.push({
+      day: day,
+      timeSlot: slot,
+      isAvailable: true
+    });
   });
 });
 
@@ -44,8 +47,19 @@ const ClassroomSchema = new Schema({
     default: true
   },
   availability: {
-    type: Object,
+    type: [{
+      day: String,
+      timeSlot: String,
+      isAvailable: Boolean
+    }],
     default: defaultAvailability
+  },
+  isOccupied: {
+    type: [{
+      day: String,
+      timeSlot: String
+    }],
+    default: []
   }
 }, {
   timestamps: true

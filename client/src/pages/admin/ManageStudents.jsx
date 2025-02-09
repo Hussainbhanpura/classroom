@@ -17,15 +17,17 @@ const ManageStudents = () => {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     role: "student",
     metadata: {
       studentGroup: "",
       year: "",
-      section: "",
       batch: "",
     },
+
   });
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [batches, setBatches] = useState([]);
   const [batchFormData, setBatchFormData] = useState({
     studentGroup: "",
     name: "",
@@ -65,22 +67,31 @@ const ManageStudents = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
     try {
       setLoading(true);
-      await axiosInstance.post("/api/users/students", formData);
+      const { confirmPassword, ...dataToSend } = formData;
+      await axiosInstance.post("/api/users/students", dataToSend);
       toast.success("Student added successfully");
       fetchStudents();
-      setFormData({
+        setFormData({
         name: "",
         email: "",
         password: "",
+        confirmPassword: "",
         role: "student",
         metadata: {
           studentGroup: "",
           year: "",
-          section: "",
+          batch: "",
         },
-      });
+
+        });
     } catch (error) {
       console.error("Error adding student:", error);
       toast.error(error.response?.data?.message || "Failed to add student");
@@ -132,7 +143,9 @@ const ManageStudents = () => {
     try {
       setLoading(true);
       const groupId = batchFormData.studentGroup;
-      const response = await axiosInstance.post(`/api/student-groups/${groupId}/batches`, batchFormData);
+      const response = await axiosInstance.post(`/api/student-groups/${groupId}/batches`, {
+        name: batchFormData.name
+      });
       toast.success('Batch created successfully!');
       fetchStudentGroups();
       setShowBatchModal(false);
@@ -149,13 +162,38 @@ const ManageStudents = () => {
     const { name, value } = e.target;
     if (name.startsWith("metadata.")) {
       const metadataField = name.split(".")[1];
-      setFormData((prev) => ({
-        ...prev,
-        metadata: {
-          ...prev.metadata,
-          [metadataField]: value,
-        },
-      }));
+      if (name === "metadata.studentGroup") {
+        setFormData((prev) => ({
+          ...prev,
+          metadata: {
+            ...prev.metadata,
+            studentGroup: value,
+          },
+        }));
+        // Fetch batches for the selected student group
+        if (value) {
+          const fetchBatches = async () => {
+            try {
+              const response = await axiosInstance.get(`/api/student-groups/${value}/batches`);
+              setBatches(response.data);
+            } catch (error) {
+              console.error("Error fetching batches:", error);
+              toast.error("Failed to fetch batches");
+            }
+          };
+          fetchBatches();
+        } else {
+          setBatches([]);
+        }
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          metadata: {
+            ...prev.metadata,
+            [metadataField]: value,
+          },
+        }));
+      }
     } else {
       setFormData((prev) => ({
         ...prev,
@@ -318,7 +356,7 @@ const ManageStudents = () => {
                 />
               </div>
 
-              <div className="mb-4">
+                <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Password
                 </label>
@@ -330,9 +368,23 @@ const ManageStudents = () => {
                   className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   required
                 />
-              </div>
+                </div>
 
-              <div className="mb-4">
+                <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+                </div>
+
+                <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Student Group
                 </label>
@@ -365,21 +417,28 @@ const ManageStudents = () => {
                 />
               </div>
 
-              <div className="mb-4">
+
+
+
+                <div className="mb-4">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Section
+                  Batch
                 </label>
-                <input
-                  type="text"
-                  name="metadata.section"
-                  value={formData.metadata.section}
+                <select
+                  name="metadata.batch"
+                  value={formData.metadata.batch}
                   onChange={handleInputChange}
                   className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                  required
-                />
-              </div>
-
-              <button
+                >
+                  <option value="">Select a batch</option>
+                  {batches.map((batch) => (
+                  <option key={batch._id} value={batch._id}>
+                    {batch.name}
+                  </option>
+                  ))}
+                </select>
+                </div>
+                <button
                 type="submit"
                 disabled={loading}
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
@@ -408,7 +467,7 @@ const ManageStudents = () => {
                     <th className="px-4 py-2">Email</th>
                     <th className="px-4 py-2">Group</th>
                     <th className="px-4 py-2">Year</th>
-                    <th className="px-4 py-2">Section</th>
+                    <th className="px-4 py-2">Batch</th>
                     <th className="px-4 py-2">Actions</th>
                   </tr>
                 </thead>
@@ -425,10 +484,10 @@ const ManageStudents = () => {
                           ? `${student.metadata.studentGroup.name} (${student.metadata.studentGroup.academicYear})`
                           : "-"}
                       </td>
-                      <td className="px-4 py-2">{student.metadata?.year || "-"}</td>
-                      <td className="px-4 py-2">{student.metadata?.batch || "-"}</td>
-                      <td className="px-4 py-2">{student.metadata?.section || "-"}</td>
-                      <td className="px-4 py-2">
+                        <td className="px-4 py-2">{student.metadata?.year || "-"}</td>
+                        <td className="px-4 py-2">{student.metadata?.batch || "-"}</td>
+                        <td className="px-4 py-2">
+
                         {!student.isDeactivated && (
                           <button
                             onClick={() => handleDelete(student.id)}
@@ -449,5 +508,4 @@ const ManageStudents = () => {
     </Layout>
   );
 };
-
 export default ManageStudents;

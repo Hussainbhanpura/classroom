@@ -19,12 +19,10 @@ class TimetableGenerator {
     this.PREFERRED = 1;
     
     this.teachers = [];
-    // For each teacher, we store daily data in teacherLimits as:
-    // { daily: Map(day => { count, lastIndex }), weekly, maxDaily, maxWeekly }
     this.teacherLimits = new Map();
-    this.classroomAvailability = new Map();
     this.timetableId = timetableId || new mongoose.Types.ObjectId();
   }
+
 
   // Helper to get teacher's preference for a given day/time slot.
   // Cache for teacher preferences
@@ -46,7 +44,6 @@ class TimetableGenerator {
 
   async initializeTracking() {
     const teacherLimits = new Map();
-    const classroomAvailability = new Map();
 
     // Batch fetch all teacher preferences
     const teacherIds = this.teachers.map(t => t._id);
@@ -68,18 +65,9 @@ class TimetableGenerator {
       });
     }
 
-    // Initialize classroom availability:
-    const classrooms = await Classroom.find({});
-    for (const classroom of classrooms) {
-      classroomAvailability.set(classroom._id.toString(), {
-        slots: new Map(this.days.map(day => [
-          day, new Map(this.timeSlots.map(slot => [slot, true]))
-        ]))
-      });
-    }
-
-    return { teacherLimits, classroomAvailability };
+    return { teacherLimits };
   }
+
 
   async generateTimetable() {
     try {
@@ -155,11 +143,11 @@ class TimetableGenerator {
       const dayInfo = limits.daily.get(day);
       if (dayInfo.count === 0) continue;
 
-      if (
+        if (
         dayInfo.count >= limits.maxDaily ||
         limits.weekly >= limits.maxWeekly ||
-        !this.isClassroomAvailable(day, timeSlot)
-      ) continue;
+        !(await this.isClassroomAvailable(day, timeSlot))
+        ) continue;
 
       const classroom = await this.findAvailableClassroom(day, timeSlot);
       if (!classroom) continue;
@@ -188,7 +176,7 @@ class TimetableGenerator {
       dayInfo.lastIndex = this.timeSlots.indexOf(timeSlot);
       limits.weekly++;
 
-      this.markClassroomUnavailable(classroom._id.toString(), day, timeSlot);
+        await this.markClassroomUnavailable(classroom._id.toString(), day, timeSlot);
       console.log(`🔁 Continued ${teacher.name} on ${day} at ${timeSlot}`);
       return { teacher, subject };
     }
@@ -271,7 +259,7 @@ class TimetableGenerator {
     dayInfo.lastIndex = this.timeSlots.indexOf(timeSlot);
     limits.weekly++;
 
-    this.markClassroomUnavailable(classroom._id.toString(), day, timeSlot);
+    await this.markClassroomUnavailable(classroom._id.toString(), day, timeSlot);
     console.log(`✅ Assigned ${teacher.name} on ${day} at ${timeSlot} (${limits.weekly}/${limits.maxWeekly})`);
     return { teacher, subject };
   }
@@ -283,29 +271,45 @@ class TimetableGenerator {
   }
 
   async findAvailableClassroom(day, timeSlot) {
-    for (const [classroomId, availability] of this.classroomAvailability) {
-      if (availability.slots.get(day).get(timeSlot)) {
-        return Classroom.findById(classroomId);
+    const classrooms = await Classroom.find({
+      isOccupied: {
+        $not: {
+          $elemMatch: {
+            day: day,
+            timeSlot: timeSlot
+          }
+        }
       }
-    }
-    return null;
+    });
+    return classrooms.length > 0 ? classrooms[0] : null;
   }
 
-  markClassroomUnavailable(classroomId, day, timeSlot) {
-    const classroom = this.classroomAvailability.get(classroomId);
-    if (classroom) {
-      classroom.slots.get(day).set(timeSlot, false);
-    }
+  async markClassroomUnavailable(classroomId, day, timeSlot) {
+    await Classroom.findByIdAndUpdate(classroomId, {
+      $push: {
+        isOccupied: {
+          day: day,
+          timeSlot: timeSlot
+        }
+      }
+    });
   }
 
-  isClassroomAvailable(day, timeSlot) {
-    // Always return false for break time
+  async isClassroomAvailable(day, timeSlot) {
     if (timeSlot === '12:00 PM') {
       return false;
     }
-    return [...this.classroomAvailability.values()].some(classroom =>
-      classroom.slots.get(day).get(timeSlot)
-    );
+    const availableClassroom = await Classroom.findOne({
+      isOccupied: {
+        $not: {
+          $elemMatch: {
+            day: day,
+            timeSlot: timeSlot
+          }
+        }
+      }
+    });
+    return !!availableClassroom;
   }
 
   isSlotAvailable(teacherId, day, timeSlot) {

@@ -21,7 +21,6 @@ const TeacherPreferences = () => {
   });
 
   const [preferences, setPreferences] = useState(initialPreferences);
-  const [selectedOption, setSelectedOption] = useState('preferred');
   const [maxSlotsPerDay, setMaxSlotsPerDay] = useState(6);
   const [maxSlotsPerWeek, setMaxSlotsPerWeek] = useState(25);
 
@@ -55,15 +54,41 @@ const TeacherPreferences = () => {
 
   const isBreakTime = (timeSlot) => timeSlot === '12:00 PM';
 
+  const countUnavailableSlots = () => {
+    let count = 0;
+    Object.values(preferences).forEach(dayPrefs => {
+      Object.values(dayPrefs).forEach(pref => {
+        if (pref === 'not-available') count++;
+      });
+    });
+    return count;
+  };
+
   const handleCellClick = (day, time) => {
-    if (isBreakTime(time)) {
-      return; // Don't allow changes to break time slots
+    if (isBreakTime(time)) return;
+
+    const currentValue = preferences[day][time];
+    let newValue;
+
+    // Toggle between states: available -> preferred -> not-available -> available
+    if (currentValue === 'available') {
+      newValue = 'preferred';
+    } else if (currentValue === 'preferred') {
+      // Check if we can mark another slot as unavailable
+      if (countUnavailableSlots() >= 5 && currentValue !== 'not-available') {
+        toast.error('You can only mark up to 5 slots as unavailable');
+        return;
+      }
+      newValue = 'not-available';
+    } else {
+      newValue = 'available';
     }
+
     setPreferences(prev => ({
       ...prev,
       [day]: {
         ...prev[day],
-        [time]: selectedOption
+        [time]: newValue
       }
     }));
   };
@@ -72,7 +97,6 @@ const TeacherPreferences = () => {
     const numValue = parseInt(value);
     if (numValue >= 1 && numValue <= 8) {
       setMaxSlotsPerDay(numValue);
-      // Ensure maxSlotsPerWeek is at least equal to maxSlotsPerDay
       if (maxSlotsPerWeek < numValue) {
         setMaxSlotsPerWeek(numValue);
       }
@@ -121,7 +145,7 @@ const TeacherPreferences = () => {
       case 'not-available':
         return '✕';
       default:
-        return '';
+        return '✓';
     }
   };
 
@@ -172,108 +196,62 @@ const TeacherPreferences = () => {
           </div>
         </div>
 
-        {/* Option Selector */}
-        <div className="flex space-x-4 mb-4">
-          <label className="inline-flex items-center">
-            <input
-              type="radio"
-              className="form-radio text-blue-600"
-              name="preference"
-              value="preferred"
-              checked={selectedOption === 'preferred'}
-              onChange={(e) => setSelectedOption(e.target.value)}
-            />
-            <span className="ml-2">Preferred</span>
-          </label>
-          <label className="inline-flex items-center">
-            <input
-              type="radio"
-              className="form-radio text-red-600"
-              name="preference"
-              value="not-available"
-              checked={selectedOption === 'not-available'}
-              onChange={(e) => setSelectedOption(e.target.value)}
-            />
-            <span className="ml-2">Not Available</span>
-          </label>
-        </div>
-
         {/* Legend */}
-        <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">Legend</h3>
-          <div className="flex space-x-6">
-            <div className="flex items-center">
-              <span className="w-4 h-4 bg-green-100 rounded mr-2 flex items-center justify-center text-xs">★</span>
-              <span className="text-sm text-gray-600">Preferred</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-4 h-4 bg-red-100 rounded mr-2 flex items-center justify-center text-xs">✕</span>
-              <span className="text-sm text-gray-600">Not Available</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-4 h-4 bg-gray-50 rounded mr-2"></span>
-              <span className="text-sm text-gray-600">Available</span>
-            </div>
+        <div className="flex space-x-6 text-sm">
+          <div className="flex items-center">
+            <span className="w-4 h-4 bg-gray-50 border border-gray-300 rounded mr-2 flex items-center justify-center text-xs">✓</span>
+            <span>Available</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-4 h-4 bg-green-100 border border-green-300 rounded mr-2 flex items-center justify-center text-xs">★</span>
+            <span>Preferred</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-4 h-4 bg-red-100 border border-red-300 rounded mr-2 flex items-center justify-center text-xs">✕</span>
+            <span>Not Available (max 5)</span>
           </div>
         </div>
 
         {/* Timetable Grid */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="min-w-full divide-y divide-gray-200">
-            <div className="bg-gray-50">
-              <div className="grid grid-cols-[100px_repeat(8,1fr)] gap-px bg-gray-200">
-                <div className="bg-gray-50 p-3"></div>
-                {timeSlots.map(time => (
-                  <div key={time} className="bg-gray-50 p-3 text-xs font-medium text-gray-500 text-center">
-                    {time}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="divide-y divide-gray-200 bg-gray-200">
-              {days.map(day => (
-                <div key={day} className="grid grid-cols-[100px_repeat(8,1fr)] gap-px">
-                  <div className="bg-gray-50 p-3 text-sm font-medium text-gray-500">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Time
+                </th>
+                {days.map(day => (
+                  <th key={day} className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {day}
-                  </div>
-                    {timeSlots.map(time => 
-                    isBreakTime(time) ? (
-                      <div
-                      key={`${day}-${time}`}
-                      className="bg-yellow-100 p-3 text-center"
-                      >
-                      <span className="text-yellow-800 text-sm font-medium">
-                        Break Time
-                      </span>
-                      </div>
-                    ) : (
-                      <div
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {timeSlots.map(time => (
+                <tr key={time}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {time}
+                  </td>
+                  {days.map(day => (
+                    <td
                       key={`${day}-${time}`}
                       onClick={() => handleCellClick(day, time)}
-                      className={`${getCellColor(preferences[day][time])} p-3 text-center cursor-pointer transition-colors duration-150`}
-                      >
-                      <span className="text-xs">
-                        {getCellIcon(preferences[day][time])}
-                      </span>
+                      className={`px-6 py-4 whitespace-nowrap text-sm cursor-pointer transition-colors duration-150 ${
+                        isBreakTime(time)
+                          ? 'bg-gray-200 cursor-not-allowed'
+                          : getCellColor(preferences[day][time])
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        {isBreakTime(time) ? 'Break' : getCellIcon(preferences[day][time])}
                       </div>
-                    )
-                    )}
-                </div>
+                    </td>
+                  ))}
+                </tr>
               ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Instructions */}
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-blue-800 mb-2">Instructions</h3>
-          <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
-            <li>Click on a time slot to mark it as preferred or not available</li>
-            <li>All unmarked slots will be considered as available by default</li>
-            <li>Set your maximum teaching load per day and week</li>
-            <li>Weekly maximum must be at least equal to your daily maximum</li>
-            <li>Remember to save your preferences after making changes</li>
-          </ul>
+            </tbody>
+          </table>
         </div>
       </div>
     </Layout>
