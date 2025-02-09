@@ -4,10 +4,9 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import profileRoutes from './routes/api/profile.js';
 import studentRoute from './routes/studentRoute.js';
-
+import teacherProgressRoutes from './routes/teacherProgress.js';
 
 dotenv.config();
-
 
 const app = express();
 
@@ -27,6 +26,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/profile', profileRoutes);
 app.use('/api/students', studentRoute);
+app.use('/api', teacherProgressRoutes);
 
 // Error handling middleware
 

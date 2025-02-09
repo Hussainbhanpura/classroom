@@ -1,9 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import TeacherProgressGraph from '../components/graphs/TeacherProgressGraph';
+import axios from 'axios';
+import { getToken } from '../utils/auth';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const [teacherData, setTeacherData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTeacherProgress();
+  }, []);
+
+  const fetchTeacherProgress = async () => {
+    try {
+      const token = getToken();
+      const response = await axios.get(
+        'http://localhost:3001/api/teacher-progress',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setTeacherData(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching teacher progress:', error);
+      setLoading(false);
+    }
+  };
 
   const navigationCards = [
     {
@@ -40,21 +68,39 @@ const AdminDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-8 p-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
           <p className="text-gray-500 mt-2">Welcome to the admin dashboard</p>
         </div>
 
-        {/* Quick Stats */}
+        {/* Teacher Progress Graph */}
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Teacher Lecture Progress</h2>
+          <div className="w-full overflow-x-auto">
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : teacherData.length > 0 ? (
+              <TeacherProgressGraph data={teacherData} />
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                No teacher data available. Please add teachers and assign them to the timetable.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Navigation Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-          {navigationCards.map((card) => (
+          {navigationCards.map((card, index) => (
             <div
-              key={card.path}
+              key={index}
+              className={`${card.color} rounded-lg shadow-md p-6 text-white cursor-pointer transform transition-transform duration-200 hover:scale-105`}
               onClick={() => navigate(card.path)}
-              className={`${card.color} rounded-lg shadow-lg p-6 text-white cursor-pointer transform transition-transform hover:scale-105`}
             >
-              <h2 className="text-xl font-semibold mb-2">{card.title}</h2>
+              <h3 className="text-lg font-semibold mb-2">{card.title}</h3>
               <p className="text-sm opacity-90">{card.description}</p>
             </div>
           ))}
