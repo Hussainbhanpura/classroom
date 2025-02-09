@@ -24,7 +24,7 @@ const SubjectSchema = new Schema({
     required: true,
     default: 0,
     min: 0,
-    max: 6
+    max: 4
   },
   requiredEquipment: {
     type: [String],
@@ -35,15 +35,26 @@ const SubjectSchema = new Schema({
     ref: 'StudentGroup',
     default: null
   },
-  lecturesPerWeek: {
-    type: Number,
-    default: 3,
-    min: 1,
-    max: 5
-  },
   isActive: {
     type: Boolean,
     default: true
+  },
+  remainingLectures: {
+    type: Number,
+    default: function() {
+      switch (this.credits) {
+        case 1:
+          return 14;
+        case 2:
+          return 28;
+        case 3:
+          return 42;
+        case 4:
+          return 56;
+        default:
+          return 0;
+      }
+    }
   }
 }, {
   timestamps: true

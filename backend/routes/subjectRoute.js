@@ -46,8 +46,8 @@ router.post('/subjects', isAdmin, async (req, res) => {
       return res.status(400).json({ message: 'Subject name is required' });
     }
 
-    const { name, description, requiredEquipment, studentGroup } = req.body;
-
+    const { name, description, requiredEquipment, studentGroup, credits } = req.body;
+    console.log(credits)
     // First check if the student group exists
     if (studentGroup) {
       const groupExists = await StudentGroup.findById(studentGroup);
@@ -70,8 +70,8 @@ router.post('/subjects', isAdmin, async (req, res) => {
       isActive: true,
       code: '',
       department: '',
-      credits: 0,
-      lecturesPerWeek: 3
+      lecturesPerWeek: 3,
+      credits : credits
     });
 
     console.log('Creating subject with data:', JSON.stringify(subject.toObject(), null, 2));

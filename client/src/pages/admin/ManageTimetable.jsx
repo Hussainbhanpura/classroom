@@ -227,63 +227,6 @@ const ManageTimetable = () => {
     setIsEditModalOpen(false);
   };
 
-  const openEditModal = (day, time, group) => {
-    const currentSlot = getSlotContent(day, time, group.studentGroup);
-    
-    console.log('currentSlot:', currentSlot);  // Debugging current slot data
-    setSelectedSlot({ day, time, group, groupSubjects: currentSlot?.groupSubjects || [] }); // Pass groupSubjects here
-    setSelectedSubject(currentSlot?.subject?._id || null);  // Set the subject _id here
-    setIsEditModalOpen(true);
-  };
-
-  const handleSubjectChange = async (e) => {
-    const newSubjectId = e.target.value;
-    setSelectedSubject(newSubjectId);
-    
-    if (!newSubjectId) return;
-
-    try {
-      // Find the selected subject object from groupSubjects
-      const selectedSubjectObj = selectedSlot.groupSubjects.find(s => s._id === newSubjectId);
-      
-      if (!selectedSubjectObj) {
-        toast.error('Invalid subject selection');
-        return;
-      }
-
-      // Make API call to update the timetable
-      await axios.put(`/api/timetable/slot`, {
-        groupId: selectedSlot.group.studentGroup,
-        day: selectedSlot.day,
-        timeSlot: selectedSlot.time,
-        subjectId: newSubjectId
-      });
-
-      // Update local state
-      const updatedTimetable = [...timetable];
-      const groupIndex = updatedTimetable.findIndex(g => g.studentGroup === selectedSlot.group.studentGroup);
-      const group = updatedTimetable[groupIndex];
-
-        const slotIndex = group.schedule.findIndex(
-        s => s.day === selectedSlot.day && s.timeSlot === selectedSlot.time
-        );
-      
-      group.schedule[slotIndex].subject = selectedSubjectObj;
-
-      setTimetable(updatedTimetable);
-      toast.success('Timetable updated successfully');
-    } catch (error) {
-      console.error('Error updating subject:', error);
-      toast.error(error.response?.data?.message || 'Failed to update subject');
-      // Reset the selected subject on error
-      setSelectedSubject(selectedSlot?.subject?._id || null);
-    }
-  };
-
-  const saveChanges = () => {
-    setIsEditModalOpen(false);
-  };
-
 
   const content = (
     <div className="p-6">

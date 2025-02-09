@@ -178,15 +178,17 @@ router.delete('/student-groups/:id', isAdmin, async (req, res) => {
 });
 
 // Create a new batch for a given student group
-router.post('/student-groups/:groupId/batches', auth,isAdmin, async (req, res) => {
+router.post('student-groups/:groupId/batches', isAdmin, async (req, res) => {
   try {
-    const { groupId } = req.params;    
-    if (!groupId) {
+    const { groupId } = req.params;
+    const { name } = req.body;
+    
+    if (!groupId || !name) {
       return res.status(400).json({ message: 'Group ID and batch name are required' });
     }
     
     const group = await StudentGroup.findById(groupId);
-    console.log(group);
+    
     if (!group) {
       return res.status(404).json({ message: 'Student group not found' });
     }
