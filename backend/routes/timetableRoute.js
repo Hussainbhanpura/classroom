@@ -8,6 +8,7 @@ import Classroom from '../models/classroomSchema.js';
 import { TimetableSlot } from '../models/timetableSlotSchema.js';
 import StudentGroup from '../models/studentGroupSchema.js';
 
+
 const router = express.Router();
 
 router.use(auth);
@@ -323,4 +324,73 @@ router.post('/generate-timetable', isAdmin, async (req, res) => {
   }
 });
 
+// Update timetable slot
+router.put('/timetable/slot', async (req, res) => {
+  try {
+    const { groupId, day, timeSlot, subjectId } = req.body;
+    console.log('Received update request:', { groupId, day, timeSlot, subjectId });
+
+    if (!groupId || !day || !timeSlot || !subjectId) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+      return res.status(400).json({ message: 'Invalid subject ID' });
+    }
+
+    // Find student group by name
+    const studentGroup = await StudentGroup.findOne({ name: groupId });
+    if (!studentGroup) {
+      return res.status(404).json({ message: 'Student group not found' });
+    }
+
+    // Get active timetable
+    const activeTimetable = await Timetable.findOne({ status: 'active' })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!activeTimetable) {
+      return res.status(404).json({ message: 'No active timetable found' });
+    }
+
+    // Find the slot and populate subject for response
+    const slot = await TimetableSlot.findOne({
+      timetableId: activeTimetable._id,
+      studentGroupId: studentGroup._id,
+      dayName: day,
+      timeSlotName: timeSlot
+    }).populate('subjectId', 'name');
+
+    if (!slot) {
+      console.log('Slot not found for:', { 
+        timetableId: activeTimetable._id,
+        studentGroupId: studentGroup._id,
+        day,
+        timeSlot 
+      });
+      return res.status(404).json({ message: 'Timetable slot not found' });
+    }
+
+    // Update the subject
+    slot.subjectId = subjectId;
+    await slot.save();
+
+    res.json({ 
+      message: 'Timetable slot updated successfully',
+      updatedSlot: {
+        day: slot.dayName,
+        timeSlot: slot.timeSlotName,
+        subject: slot.subjectId
+      }
+    });
+  } catch (error) {
+    console.error('Error updating timetable slot:', error);
+    if (error.message.includes('Time slot already occupied')) {
+      return res.status(409).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Failed to update timetable slot' });
+  }
+});
+
 export default router;
+
